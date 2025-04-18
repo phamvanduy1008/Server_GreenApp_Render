@@ -81,6 +81,7 @@ const productSchema = new mongoose.Schema(
     info: { type: String, default: "" },
     image: { type: String, default: "" },
     status: { type: String, enum: ["available", "out_of_stock"], default: "available" },
+    evaluate: { type: Number, default: 5 },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
     plant: { type: mongoose.Schema.Types.ObjectId, ref: "Plant", required: true },
   },
