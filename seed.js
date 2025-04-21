@@ -49,7 +49,7 @@ async function run() {
     const users = [
       {
         _id: new ObjectId(),
-        email: "binhnguyenpk24@gmail.com",
+        email: "duy@gmail.com",
         password: await bcrypt.hash("123456", 10),
         profile: {
           full_name: "Nguyen Van Binh",
@@ -110,6 +110,7 @@ async function run() {
         _id: new ObjectId(),
         name: "Cây ăn quả",
         status: "active",
+        image:"123.jpg",
         description: "Các loại cây ăn quả như xoài, cam",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -118,6 +119,7 @@ async function run() {
         _id: new ObjectId(),
         name: "Cây công nghiệp",
         status: "active",
+        image:"123.jpg",
         description: "Các loại cây công nghiệp như cà phê, cao su",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -126,6 +128,7 @@ async function run() {
         _id: new ObjectId(),
         name: "Cây lương thực",
         status: "active",
+        image:"123.jpg",
         description: "Các loại cây lương thực như lúa, sắn",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -134,6 +137,7 @@ async function run() {
         _id: new ObjectId(),
         name: "Rau củ",
         status: "active",
+        image:"123.jpg",
         description: "Các loại rau củ như rau muống, cải xanh",
         createdAt: new Date(),
         updatedAt: new Date(),

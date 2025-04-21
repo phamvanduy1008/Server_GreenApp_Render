@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
+import bcrypt from "bcrypt";
 import cors from "cors";
 import { User,Admin,Category,Contact,Infor,Plant,Product, Seller, UserCart } from "./schema.js";
 
@@ -23,6 +24,7 @@ mongoose.connection.on("error", (err) => {
   console.error("Lỗi kết nối MongoDB: ", err);
 });
 
+app.use('/images', express.static('images'));
 
 
 app.post("/login", async (req, res) => {
@@ -31,11 +33,18 @@ app.post("/login", async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ success: false, message: "Thiếu email hoặc mật khẩu!" });
   }
+
   try {
-    const user = await User.findOne({ email, password }); 
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ success: false, message: "Sai email hoặc mật khẩu!" });
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Sai email hoặc mật khẩu!" });
+    }
+
     res.json({
       success: true,
       user: {
@@ -50,6 +59,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
+
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
 
@@ -63,9 +73,11 @@ app.post("/register", async (req, res) => {
       return res.status(409).json({ success: false, message: "Email đã được sử dụng!" });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10); 
+
     const newUser = new User({
       email,
-      password, 
+      password: hashedPassword,
       profile: {
         full_name: "",
         username: "",
@@ -81,8 +93,56 @@ app.post("/register", async (req, res) => {
   }
 });
 
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await Category.find();
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+app.get('/api/plants', async (req, res) => {
+  try {
+    const plants = await Plant.find();
+    res.json(plants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+app.get('/api/infor-plants', async (req, res) => {
+  try {
+    const inforPlants = await Infor.find().populate('plant');
+    res.json(inforPlants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await Product.find();
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/products/:id', async (req, res) => {
+  const { id } = req.params; 
+
+  try {
+    const product = await Product.findById(id);
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(product); 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Khởi động server
 app.listen(port, () => {

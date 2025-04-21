@@ -36,6 +36,7 @@ const categorySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
     status: { type: String, enum: ["active", "inactive"], default: "active" },
+    image: { type: String, default: "" },
     description: { type: String, default: "" },
   },
   { timestamps: true }
