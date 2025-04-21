@@ -144,6 +144,19 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+app.get('/api/infor-plants/:plantId', async (req, res) => {
+  const { plantId } = req.params;
+  try {
+    const inforPlant = await Infor.findOne({ plant: plantId }).populate('plant');
+    if (!inforPlant) {
+      return res.status(404).json({ error: 'Infor plant not found' });
+    }
+    res.json(inforPlant);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Khởi động server
 app.listen(port, () => {
   console.log(`Server chạy trên port ${port}`);
