@@ -117,7 +117,6 @@ const sellerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Contact Schema
 const contactSchema = new mongoose.Schema(
   {
     content: { type: String, required: true },
@@ -127,6 +126,15 @@ const contactSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const favouriteSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    products: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+  },
+  { timestamps: true }
+);
+
+export const Favourite = mongoose.model("Favourite", favouriteSchema);
 export const Admin = mongoose.model("Admin", adminSchema);
 export const User = mongoose.model("User", userSchema);
 export const Category = mongoose.model("Category", categorySchema);

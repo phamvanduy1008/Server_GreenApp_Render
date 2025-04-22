@@ -157,6 +157,41 @@ app.get('/api/infor-plants/:plantId', async (req, res) => {
   }
 });
 
+app.get('/api/categories/:id', async (req, res) => {
+  try {
+    const categoryId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({ message: 'ID danh mục không hợp lệ' });
+    }
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: 'Không tìm thấy danh mục' });
+    }
+    res.status(200).json(category);
+  } catch (error) {
+    console.error('Lỗi khi lấy thông tin danh mục:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+app.get('/api/products/category/:categoryId', async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({ message: 'ID danh mục không hợp lệ' });
+    }
+
+    const products = await Product.find({ category: categoryId });
+
+    return res.status(200).json(products);
+  } catch (error) {
+    console.error('Lỗi khi tìm sản phẩm theo danh mục:', error);
+    return res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+
 // Khởi động server
 app.listen(port, () => {
   console.log(`Server chạy trên port ${port}`);
