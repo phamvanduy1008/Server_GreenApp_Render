@@ -191,6 +191,50 @@ app.get('/api/products/category/:categoryId', async (req, res) => {
   }
 });
 
+app.get('/api/user-cart/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const cartItems = await UserCart.find({ user: userId }).populate('product');
+    if (!cartItems) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+    res.json(cartItems);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/user-cart/:cartId', async (req, res) => {
+  const { cartId } = req.params;
+  const { quantity } = req.body;
+  try {
+    const cartItem = await UserCart.findByIdAndUpdate(
+      cartId,
+      { quantity: quantity },
+      { new: true }
+    ).populate('product');
+    if (!cartItem) {
+      return res.status(404).json({ error: 'Cart item not found' });
+    }
+    res.json(cartItem);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/user-cart/:cartId', async (req, res) => {
+  const { cartId } = req.params;
+  try {
+    const cartItem = await UserCart.findByIdAndDelete(cartId);
+    if (!cartItem) {
+      return res.status(404).json({ error: 'Cart item not found' });
+    }
+    res.json({ success: true, message: 'Item removed from cart' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Khởi động server
 app.listen(port, () => {
