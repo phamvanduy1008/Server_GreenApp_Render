@@ -130,19 +130,23 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.get('/api/products/:id', async (req, res) => {
-  const { id } = req.params; 
-
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'ID sản phẩm không hợp lệ' });
+  }
   try {
     const product = await Product.findById(id);
-    
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: 'Không tìm thấy sản phẩm' });
     }
-    res.json(product); 
+    res.json(product);
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    console.error('Lỗi khi lấy sản phẩm:', err.message, err.stack);
+    res.status(500).json({ error: 'Lỗi server', details: err.message });
+ ically, err.message 
+}
+}
+);
 
 app.get('/api/infor-plants/:plantId', async (req, res) => {
   const { plantId } = req.params;
@@ -233,6 +237,39 @@ app.delete('/api/user-cart/:cartId', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/products/search', async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  console.log('Search query:', query);
+
+  if (!query) {
+    return res.status(400).json({ error: 'Query is required' });
+  }
+
+  try {
+    const products = await Product.find({
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { info: { $regex: query, $options: 'i' } }, 
+      ],
+    }).exec();
+    return res.json(products);
+  } catch (err) {
+    console.error('Search error:', err.message, err.stack);
+    return res.status(500).json({ error: 'Something went wrong', details: err.message });
+  }
+});
+
+app.get('/products/suggest', async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json([]);
+
+  const suggestions = await Product.find({ name: new RegExp(q, 'i') })
+    .select('name image')
+    .limit(5);
+
+  res.json(suggestions);
 });
 
 
