@@ -464,6 +464,80 @@ app.post(
   }
 );
 
+app.get("/api/seller/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const orders = await Seller.find({ user: userId })
+      .populate("product")
+    const categorized = {
+      pending: [],
+      processing: [],
+      delivered: [],
+      cancelled: [],
+    };
+
+    orders.forEach(order => {
+      const orderWithId = {
+        _id: order._id, 
+        ...order.toObject(), 
+      };
+
+      if (order.status === 'pending') categorized.pending.push(orderWithId);
+      else if (order.status === 'processing') categorized.processing.push(orderWithId);
+      else if (order.status === 'delivered') categorized.delivered.push(orderWithId);
+      else if (order.status === 'cancelled') categorized.cancelled.push(orderWithId);
+    });
+
+    res.status(200).json(categorized);
+  } catch (error) {
+    console.error("Error fetching seller data:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.patch("/api/orders/:orderId/confirm", async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const updatedOrder = await Seller.findByIdAndUpdate(
+      orderId,
+      { status: "delivered" },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.status(200).json({ message: "Order cancelled", order: updatedOrder });
+  } catch (error) {
+    console.error("Error confirming order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.patch("/api/orders/:orderId/cancel", async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const updatedOrder = await Seller.findByIdAndUpdate(
+      orderId,
+      { status: "cancelled" },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.status(200).json({ message: "Order cancelled", order: updatedOrder });
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Khởi động server
 app.listen(port, () => {
   console.log(`Server chạy trên port ${port}`);

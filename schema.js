@@ -108,7 +108,7 @@ const sellerSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "shipped", "delivered", "cancelled"],
+      enum: ["pending" ,"processing", "delivered", "cancelled"],
       default: "pending",
     },
     orderCode: { type: String, required: true, unique: true },
