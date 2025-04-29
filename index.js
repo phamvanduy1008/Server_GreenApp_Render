@@ -464,6 +464,63 @@ app.post(
   }
 );
 
+app.post("/api/sellers", async (req, res) => {
+  try {
+    const { userId, items, name, address, phone, paymentMethod } =
+      req.body;
+
+    if (!userId || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin userId hoặc items không hợp lệ",
+      });
+    }
+
+    let newOrderCode;
+    let isUnique = false;
+    while (!isUnique) {
+      const randomNum = Math.floor(Math.random() * 1000);
+      newOrderCode = `ORD${String(randomNum).padStart(3, "0")}`;
+      const existingOrder = await Seller.findOne({ orderCode: newOrderCode });
+      if (!existingOrder) {
+        isUnique = true;
+      }
+    }
+
+    const currentDate = new Date();
+    const orders = items.map((item) => ({
+      user: userId,
+      product: item.productId,
+      quantity: item.quantity,
+      price: item.price,
+      status: "pending",
+      orderCode: newOrderCode,
+      name,
+      address,
+      phone,
+      paymentMethod,
+      dateOrder: currentDate,
+      createdAt: currentDate,
+      updatedAt: currentDate,
+    }));
+
+    const result = await Seller.insertMany(orders);
+
+    res.status(201).json({
+      success: true,
+      message: "Đặt hàng thành công",
+      orders: result,
+    });
+  } catch (err) {
+    console.error("Lỗi khi tạo đơn hàng:", err);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi tạo đơn hàng",
+      error: err.message,
+    });
+  }
+});
+
 app.get("/api/seller/:userId", async (req, res) => {
   const { userId } = req.params;
 

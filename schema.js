@@ -49,8 +49,6 @@ const plantSchema = new mongoose.Schema(
     avgPriceYesterday: { type: Number, default: 0 },
     avgPriceNow: { type: Number, default: 0 },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
-    description: { type: String, default: "" },
-    image: { type: String, default: "" },
   },
   { timestamps: true }
 );
@@ -84,7 +82,6 @@ const productSchema = new mongoose.Schema(
     status: { type: String, enum: ["available", "out_of_stock"], default: "available" },
     evaluate: { type: Number, default: 5 },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
-    plant: { type: mongoose.Schema.Types.ObjectId, ref: "Plant", required: true },
   },
   { timestamps: true }
 );
@@ -100,22 +97,29 @@ const userCartSchema = new mongoose.Schema(
 );
 
 // Seller Schema (Order Schema)
-const sellerSchema = new mongoose.Schema(
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    quantity: { type: Number, required: true, min: 1 },
-    price: { type: Number, required: true },
-    status: {
-      type: String,
-      enum: ["pending" ,"processing", "delivered", "cancelled"],
-      default: "pending",
-    },
-    orderCode: { type: String, required: true, unique: true },
-    dateOrder: { type: Date, default: Date.now },
+const sellerSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
   },
-  { timestamps: true }
-);
+  quantity: { type: Number, required: true },
+  price: { type: Number, required: true },
+  status: {
+    type: String,
+    enum: ["pending", "processing", "delivered", "cancelled"],
+    default: "pending",
+  },
+  orderCode: { type: String, required: true },
+  full_name: { type: String },
+  phone: { type: String },
+  address: { type: String },
+  paymentMethod: { type: String },
+  dateOrder: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
 
 const contactSchema = new mongoose.Schema(
   {
