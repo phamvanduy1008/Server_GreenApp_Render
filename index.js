@@ -490,13 +490,18 @@ app.post(
 
 app.post("/api/sellers", async (req, res) => {
   try {
-    const { userId, items, name, address, phone, paymentMethod } =
-      req.body;
+    const { userId, items, name, address, phone, paymentMethod, fee, total_price } = req.body;
 
     if (!userId || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Thiếu thông tin userId hoặc items không hợp lệ",
+      });
+    }
+    if (!name || !address || !phone || !paymentMethod || fee === undefined || total_price === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin bắt buộc (name, address, phone, paymentMethod, fee, total_price)",
       });
     }
 
@@ -512,28 +517,33 @@ app.post("/api/sellers", async (req, res) => {
     }
 
     const currentDate = new Date();
-    const orders = items.map((item) => ({
+
+    const newOrder = {
       user: userId,
-      product: item.productId,
-      quantity: item.quantity,
-      price: item.price,
+      products: items.map((item) => ({
+        product: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+      })),
       status: "pending",
       orderCode: newOrderCode,
-      name,
-      address,
-      phone,
-      paymentMethod,
+      full_name: name,
+      address: address,
+      phone: phone,
+      paymentMethod: paymentMethod,
+      fee: fee,
+      total_price: total_price,
       dateOrder: currentDate,
       createdAt: currentDate,
       updatedAt: currentDate,
-    }));
+    };
 
-    const result = await Seller.insertMany(orders);
+    const result = await Seller.create(newOrder);
 
     res.status(201).json({
       success: true,
       message: "Đặt hàng thành công",
-      orders: result,
+      order: result,
     });
   } catch (err) {
     console.error("Lỗi khi tạo đơn hàng:", err);
