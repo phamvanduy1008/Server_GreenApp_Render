@@ -642,42 +642,37 @@ async function run() {
     ];
     await db.collection("usercarts").insertMany(userCarts);
 
-    // Seed Sellers (Orders)
-    const sellers = [
+   // Seed Sellers (Orders)
+const sellers = [
+  {
+    _id: new ObjectId(),
+    user: users[1]._id,
+    products: [
       {
-        _id: new ObjectId(),
-        user: users[1]._id,
         product: products[0]._id,
         quantity: 2,
         price: 20000,
-        status: "pending",
-        orderCode: "ORD001",
-        full_name: "Le Thi Thu Vi",
-        phone: "0987654321",
-        address: "123 Le Loi, Hai Chau, Đà Nẵng",
-        paymentMethod: "cod",
-        dateOrder: new Date("2024-06-05"),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       },
       {
-        _id: new ObjectId(),
-        user: users[1]._id,
         product: products[1]._id,
         quantity: 3,
         price: 20000,
-        status: "processing",
-        orderCode: "ORD002",
-        full_name: "Le Thi Thu Vi",
-        phone: "0987654321",
-        address: "123 Le Loi, Hai Chau, Đà Nẵng",
-        paymentMethod: "cod",
-        dateOrder: new Date("2024-06-06"),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       },
-    ];
-    await db.collection("sellers").insertMany(sellers);
+    ],
+    status: "pending",
+    orderCode: "ORD001",
+    full_name: "Le Thi Thu Vi",
+    phone: "0987654321",
+    address: "123 Le Loi, Hai Chau, Đà Nẵng",
+    paymentMethod: "cod",
+    dateOrder: new Date("2024-06-05"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
+
+await db.collection("sellers").insertMany(sellers);
+
 
     // Seed Contacts
     const contacts = [

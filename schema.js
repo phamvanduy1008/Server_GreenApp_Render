@@ -99,27 +99,33 @@ const userCartSchema = new mongoose.Schema(
 // Seller Schema (Order Schema)
 const sellerSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Product",
-    required: true,
-  },
-  quantity: { type: Number, required: true },
-  price: { type: Number, required: true },
+
+  products: [
+    {
+      product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+      quantity: { type: Number, required: true },
+      price: { type: Number, required: true }
+    }
+  ],
+
   status: {
     type: String,
     enum: ["pending", "processing", "delivered", "cancelled"],
-    default: "pending",
+    default: "pending"
   },
-  orderCode: { type: String, required: true },
+
+  orderCode: { type: String, required: true, unique: true },
+
   full_name: { type: String },
   phone: { type: String },
   address: { type: String },
   paymentMethod: { type: String },
+
   dateOrder: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
+
 
 const contactSchema = new mongoose.Schema(
   {

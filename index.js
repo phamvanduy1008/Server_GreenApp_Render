@@ -17,6 +17,12 @@ import {
   UserCart,
 } from "./schema.js";
 
+import { fileURLToPath } from 'url';
+
+// Giả lập __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Tạo thư mục images/profile nếu chưa tồn tại
 import fs from "fs";
 const profileDir = "images/profile";
@@ -69,7 +75,8 @@ mongoose.connection.on("error", (err) => {
   console.error("Lỗi kết nối MongoDB: ", err);
 });
 
-app.use("/images", express.static("images"));
+app.use("/images", express.static(path.join(__dirname, "images")));
+
 
 // Các endpoint hiện có (giữ nguyên)
 app.post("/login", async (req, res) => {
@@ -416,6 +423,23 @@ app.put("/api/user/:userId/update", async (req, res) => {
     });
   }
 });
+app.post('/api/cart', async (req, res) => {
+  const { user, product, quantity } = req.body;
+
+  if (!user || !product || !quantity) {
+    return res.status(400).json({ error: 'Thiếu thông tin giỏ hàng' });
+  }
+
+  try {
+    const cartItem = new UserCart({ user, product, quantity });
+    await cartItem.save();
+    res.status(201).json(cartItem);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi khi thêm vào giỏ hàng' });
+  }
+});
+
 
 // Endpoint để upload ảnh avatar
 app.post(
@@ -525,8 +549,8 @@ app.get("/api/seller/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const orders = await Seller.find({ user: userId })
-      .populate("product")
+    const orders = await Seller.find({ user: userId }).populate("products.product");
+
     const categorized = {
       pending: [],
       processing: [],
@@ -536,14 +560,14 @@ app.get("/api/seller/:userId", async (req, res) => {
 
     orders.forEach(order => {
       const orderWithId = {
-        _id: order._id, 
-        ...order.toObject(), 
+        _id: order._id,
+        ...order.toObject(),
       };
 
-      if (order.status === 'pending') categorized.pending.push(orderWithId);
-      else if (order.status === 'processing') categorized.processing.push(orderWithId);
-      else if (order.status === 'delivered') categorized.delivered.push(orderWithId);
-      else if (order.status === 'cancelled') categorized.cancelled.push(orderWithId);
+      if (order.status === "pending") categorized.pending.push(orderWithId);
+      else if (order.status === "processing") categorized.processing.push(orderWithId);
+      else if (order.status === "delivered") categorized.delivered.push(orderWithId);
+      else if (order.status === "cancelled") categorized.cancelled.push(orderWithId);
     });
 
     res.status(200).json(categorized);
@@ -552,6 +576,7 @@ app.get("/api/seller/:userId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 app.patch("/api/orders/:orderId/confirm", async (req, res) => {
   const { orderId } = req.params;
@@ -594,6 +619,31 @@ app.patch("/api/orders/:orderId/cancel", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: 'ID đơn hàng không hợp lệ' });
+    }
+
+    const order = await Seller.findById(orderId)
+      .populate('product', 'name price image info')
+      .lean();
+
+    if (!order) {
+      return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+    }
+      order.dateOrder = order.dateOrder.toISOString();
+
+    res.json(order);
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    res.status(500).json({ error: 'Không thể tải thông tin đơn hàng' });
+  }
+});
+
 
 // Khởi động server
 app.listen(port, () => {
