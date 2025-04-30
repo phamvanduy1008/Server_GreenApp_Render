@@ -639,13 +639,18 @@ app.get('/api/orders/:id', async (req, res) => {
     }
 
     const order = await Seller.findById(orderId)
-      .populate('product', 'name price image info')
+      .populate('products.product', 'name price image info')
       .lean();
 
     if (!order) {
       return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
     }
+
+    if (order.dateOrder) {
       order.dateOrder = order.dateOrder.toISOString();
+    }
+    order.createdAt = order.createdAt.toISOString();
+    order.updatedAt = order.updatedAt.toISOString();
 
     res.json(order);
   } catch (error) {
@@ -653,7 +658,6 @@ app.get('/api/orders/:id', async (req, res) => {
     res.status(500).json({ error: 'Không thể tải thông tin đơn hàng' });
   }
 });
-
 app.get("/api/plants", async (req, res) => {
   try {
     const plants = await Plant.find();
