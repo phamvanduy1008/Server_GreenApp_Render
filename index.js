@@ -644,6 +644,14 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 });
 
+app.get("/api/plants", async (req, res) => {
+  try {
+    const plants = await Plant.find();
+    res.json(plants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Khởi động server
 app.listen(port, () => {
