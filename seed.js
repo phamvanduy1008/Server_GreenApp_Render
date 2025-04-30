@@ -665,6 +665,8 @@ const sellers = [
     phone: "0987654321",
     address: "123 Le Loi, Hai Chau, Đà Nẵng",
     paymentMethod: "cod",
+    fee: 50000,
+    total_price: 1500000,
     dateOrder: new Date("2024-06-05"),
     createdAt: new Date(),
     updatedAt: new Date(),

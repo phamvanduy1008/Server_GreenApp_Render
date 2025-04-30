@@ -120,7 +120,8 @@ const sellerSchema = new mongoose.Schema({
   phone: { type: String },
   address: { type: String },
   paymentMethod: { type: String },
-
+  fee: { type: Number },
+  total_price: { type: Number },
   dateOrder: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
