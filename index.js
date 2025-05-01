@@ -685,6 +685,7 @@ app.get('/api/favourites/:userId', async (req, res) => {
   }
 });
 
+
 app.post('/api/favourites', async (req, res) => {
   try {
     const { user, product } = req.body;
@@ -739,6 +740,20 @@ app.delete('/api/favourites/:userId/:productId', async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi xóa sản phẩm khỏi danh sách yêu thích' });
   }
 });
+
+app.get('/products/top-sold', async (req, res) => {
+  try {
+    const products = await Product.find()
+      .sort({ sold: -1 })  
+      .limit(5);           
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error('Error fetching top sold products:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy sản phẩm bán chạy' });
+  }
+});
+
 
 // Khởi động server
 app.listen(port, () => {
