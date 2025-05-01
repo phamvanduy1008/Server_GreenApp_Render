@@ -145,6 +145,7 @@ const favouriteSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+
 export const Favourite = mongoose.model("Favourite", favouriteSchema);
 export const Admin = mongoose.model("Admin", adminSchema);
 export const User = mongoose.model("User", userSchema);

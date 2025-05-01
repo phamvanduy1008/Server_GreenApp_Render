@@ -591,17 +591,14 @@ async function run() {
     const favourites = [
       {
         user: users[0]._id,
-        product: products[0]._id,
+        products: [products[0]._id, products[1]._id],
       },
       {
-        user: users[0]._id,
-        product: products[1]._id,
-      },
-      {
-        user: users[1]?._id,
-        product: products[2]._id,
+        user: users[1]._id,
+        products: [products[2]._id],
       },
     ];
+    
 
     await db.collection("favourites").insertMany(favourites);
 

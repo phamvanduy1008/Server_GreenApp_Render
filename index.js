@@ -15,6 +15,7 @@ import {
   Product,
   Seller,
   UserCart,
+  Favourite,
 } from "./schema.js";
 
 import { fileURLToPath } from 'url';
@@ -664,6 +665,78 @@ app.get("/api/plants", async (req, res) => {
     res.json(plants);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/favourites/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const favourite = await Favourite.findOne({ user: userId }).populate('products');
+
+    if (!favourite) {
+      return res.status(200).json({ user: userId, products: [] });
+    }
+
+    res.status(200).json(favourite);
+  } catch (error) {
+    console.error('Error fetching favourites:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách yêu thích' });
+  }
+});
+
+app.post('/api/favourites', async (req, res) => {
+  try {
+    const { user, product } = req.body;
+
+    if (!user || !product) {
+      return res.status(400).json({ message: 'Thiếu thông tin user hoặc product' });
+    }
+
+    let favourite = await Favourite.findOne({ user });
+
+    if (!favourite) {
+      favourite = new Favourite({
+        user,
+        products: [product],
+      });
+    } else {
+      if (favourite.products.includes(product)) {
+        return res.status(400).json({ message: 'Sản phẩm đã có trong danh sách yêu thích' });
+      }
+      favourite.products.push(product);
+    }
+
+    await favourite.save();
+    res.status(201).json({ message: 'Đã thêm sản phẩm vào danh sách yêu thích', favourite });
+  } catch (error) {
+    console.error('Error adding to favourites:', error);
+    res.status(500).json({ message: 'Lỗi server khi thêm sản phẩm vào danh sách yêu thích' });
+  }
+});
+
+app.delete('/api/favourites/:userId/:productId', async (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+
+    const favourite = await Favourite.findOne({ user: userId });
+
+    if (!favourite) {
+      return res.status(404).json({ message: 'Không tìm thấy danh sách yêu thích' });
+    }
+
+    const productIndex = favourite.products.indexOf(productId);
+    if (productIndex === -1) {
+      return res.status(404).json({ message: 'Sản phẩm không có trong danh sách yêu thích' });
+    }
+
+    favourite.products.splice(productIndex, 1);
+    await favourite.save();
+
+    res.status(200).json({ message: 'Đã xóa sản phẩm khỏi danh sách yêu thích', favourite });
+  } catch (error) {
+    console.error('Error removing from favourites:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa sản phẩm khỏi danh sách yêu thích' });
   }
 });
 
