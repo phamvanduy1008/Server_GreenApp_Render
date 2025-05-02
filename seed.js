@@ -715,6 +715,56 @@ await db.collection("sellers").insertMany(sellers);
       },
     ];
     await db.collection("contacts").insertMany(contacts);
+    const notices = [
+      {
+        _id: new ObjectId(),
+        user: users[0]._id,
+        order: sellers[0]._id,
+        title: "Đơn hàng đã bị hủy",
+        message: `Đơn hàng ${sellers[0].orderCode} của bạn đã bị hủy. Nếu có thắc mắc, vui lòng liên hệ hỗ trợ.`,
+        type: "cancelled",
+        isRead: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        _id: new ObjectId(),
+        user: users[0]._id,
+        order: sellers[0]._id,
+        title: "Đơn hàng đã giao thành công",
+        message: `Đơn hàng ${sellers[0].orderCode} của bạn đã được giao thành công. Cảm ơn bạn đã mua hàng!`,
+        type: "delivered",
+        isRead: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        _id: new ObjectId(),
+        user: users[0]._id,
+        order: sellers[0]._id,
+        title: "Đơn hàng đang được xử lý",
+        message: `Đơn hàng ${sellers[0].orderCode} của bạn đang được đóng gói và chuẩn bị giao.`,
+        type: "processing",
+        isRead: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        _id: new ObjectId(),
+        user: users[0]._id,
+        order: sellers[0]._id,
+        title: "Đơn hàng đang chờ xác nhận",
+        message: `Đơn hàng ${sellers[0].orderCode} của bạn đang chờ xác nhận từ người bán.`,
+        type: "pending",
+        isRead: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    
+    
+  
+    await db.collection("notices").insertMany(notices);
 
     console.log("✅ Đã thêm đầy đủ dữ liệu mẫu!");
   } catch (error) {

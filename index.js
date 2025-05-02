@@ -16,6 +16,7 @@ import {
   Seller,
   UserCart,
   Favourite,
+  Notice,
 } from "./schema.js";
 
 import { fileURLToPath } from 'url';
@@ -668,20 +669,22 @@ app.get("/api/plants", async (req, res) => {
   }
 });
 
-app.get('/api/favourites/:userId', async (req, res) => {
+app.get('/api/favourites/:userId/:productId', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId, productId } = req.params;
+    const favourite = await Favourite.findOne({
+      user: userId,
+      products: productId,
+    });
 
-    const favourite = await Favourite.findOne({ user: userId }).populate('products');
-
-    if (!favourite) {
-      return res.status(200).json({ user: userId, products: [] });
+    if (favourite) {
+      return res.status(200).json({ favorited: true });
     }
 
-    res.status(200).json(favourite);
+    res.status(200).json({ favorited: false });
   } catch (error) {
-    console.error('Error fetching favourites:', error);
-    res.status(500).json({ message: 'Lỗi server khi lấy danh sách yêu thích' });
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server khi kiểm tra favourite' });
   }
 });
 
@@ -716,7 +719,7 @@ app.post('/api/favourites', async (req, res) => {
   }
 });
 
-app.delete('/api/favourites/:userId/:productId', async (req, res) => {
+app.delete('/api/favourites/delete/:userId/:productId', async (req, res) => {
   try {
     const { userId, productId } = req.params;
 
@@ -751,6 +754,54 @@ app.get('/products/top-sold', async (req, res) => {
   } catch (error) {
     console.error('Error fetching top sold products:', error);
     res.status(500).json({ message: 'Lỗi server khi lấy sản phẩm bán chạy' });
+  }
+});
+app.get("/notice/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "userId không hợp lệ" });
+  }
+
+  try {
+    const notices = await Notice.find({ user: userId })
+      .populate("order", "orderCode status") 
+      .sort({ createdAt: -1 }); 
+
+    res.status(200).json(notices);
+  } catch (error) {
+    console.error("Lỗi lấy thông báo:", error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
+app.patch('/notice/read/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notice = await Notice.findById(id);
+
+    if (!notice) {
+      return res.status(404).json({ message: 'Thông báo không tồn tại.' });
+    }
+
+    notice.isRead = true;  
+    await notice.save();
+
+    return res.status(200).json({ message: 'Thông báo đã được đánh dấu là đã đọc.' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Lỗi hệ thống khi cập nhật thông báo.' });
+  }
+});
+
+app.post("/api/notices", async (req, res) => {
+  try {
+    const { user, order, title, message, type } = req.body;
+    const newNotice = new Notice({ user, order, title, message, type });
+    await newNotice.save();
+    res.status(201).json(newNotice);
+  } catch (err) {
+    console.error("Error creating notice:", err);
+    res.status(500).json({ message: "Lỗi server khi tạo thông báo." });
   }
 });
 

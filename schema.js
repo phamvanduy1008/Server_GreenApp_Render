@@ -146,6 +146,24 @@ const favouriteSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const noticeSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    order: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
+
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+
+    isRead: { type: Boolean, default: false },
+    type: {
+      type: String,
+      enum: ["pending", "processing", "delivered", "cancelled"],
+      default: "pending"
+    },
+  },
+  { timestamps: true }
+);
+
 
 export const Favourite = mongoose.model("Favourite", favouriteSchema);
 export const Admin = mongoose.model("Admin", adminSchema);
@@ -157,3 +175,4 @@ export const Product = mongoose.model("Product", productSchema);
 export const UserCart = mongoose.model("UserCart", userCartSchema);
 export const Seller = mongoose.model("Seller", sellerSchema);
 export const Contact = mongoose.model("Contact", contactSchema);
+export const Notice = mongoose.model("Notice", noticeSchema);
