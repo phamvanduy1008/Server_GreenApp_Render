@@ -5,6 +5,9 @@ import bcrypt from "bcrypt";
 import cors from "cors";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import {
   User,
   Admin,
@@ -16,33 +19,40 @@ import {
   Seller,
   UserCart,
   Favourite,
-  Notice,
+  Message,
 } from "./schema.js";
 
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 
 // Giả lập __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Tạo thư mục images/profile nếu chưa tồn tại
-import fs from "fs";
 const profileDir = "images/profile";
 if (!fs.existsSync(profileDir)) {
   fs.mkdirSync(profileDir, { recursive: true });
 }
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Cập nhật origin khi triển khai thực tế
+    methods: ["GET", "POST"],
+  },
+});
+
 const port = process.env.PORT || 3000;
 
 // Cấu hình multer để lưu ảnh vào thư mục images/profile
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "images/profile/"); // Thư mục lưu ảnh
+    cb(null, "images/profile/");
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname)); // Đặt tên file duy nhất
+    cb(null, uniqueSuffix + path.extname(file.originalName));
   },
 });
 
@@ -51,7 +61,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png/;
     const extname = filetypes.test(
-      path.extname(file.originalname).toLowerCase()
+      path.extname(file.originalName).toLowerCase()
     );
     const mimetype = filetypes.test(file.mimetype);
     if (extname && mimetype) {
@@ -66,7 +76,9 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/images", express.static(path.join(__dirname, "images")));
 
+// Kết nối MongoDB
 const mongoURI = "mongodb://127.0.0.1:27017/greentree_app";
 mongoose.connect(mongoURI);
 
@@ -77,8 +89,332 @@ mongoose.connection.on("error", (err) => {
   console.error("Lỗi kết nối MongoDB: ", err);
 });
 
-app.use("/images", express.static(path.join(__dirname, "images")));
+// Hàm lưu tin nhắn vào MongoDB
+async function saveMessage(userId, message) {
+  try {
+    const newMessage = new Message({
+      userId,
+      sender: message.sender, // Ví dụ: "user:<userId>" hoặc "admin:<adminId>"
+      receiver: message.receiver, // Ví dụ: "admin:<adminId>" hoặc "user:<userId>"
+      content: message.content,
+      timestamp: new Date(),
+    });
+    await newMessage.save();
+  } catch (err) {
+    console.error(`Lỗi khi lưu tin nhắn cho user ${userId}:`, err);
+  }
+}
 
+// Hàm lấy tin nhắn từ MongoDB
+async function getMessages(userId, adminId) {
+  try {
+    const messages = await Message.find({
+      userId,
+      $or: [
+        { sender: `user:${userId}`, receiver: `admin:${adminId}` },
+        { sender: `admin:${adminId}`, receiver: `user:${userId}` },
+      ],
+    })
+      .sort({ timestamp: 1 })
+      .lean();
+    return messages.map(({ sender, content, timestamp }) => ({
+      sender,
+      content,
+      timestamp: timestamp.toISOString(),
+    }));
+  } catch (err) {
+    console.error(`Lỗi khi đọc tin nhắn cho user ${userId} và admin ${adminId}:`, err);
+    return [];
+  }
+}
+
+// Xử lý WebSocket cho chat
+io.on("connection", (socket) => {
+  console.log("New client connected:", socket.id);
+
+  socket.on('register', async ({ userId, role }) => {
+    try {
+      if (role === 'user' && !mongoose.Types.ObjectId.isValid(userId)) {
+        socket.emit('error', { message: 'ID người dùng không hợp lệ' });
+        return;
+      }
+  
+      let admins = []; // Khai báo admins mặc định là mảng rỗng
+      if (role === 'user') {
+        const user = await User.findById(userId);
+        if (!user) {
+          socket.emit('error', { message: 'Người dùng không tồn tại' });
+          return;
+        }
+        // Gửi danh sách admin
+        admins = await Admin.find().select('_id email name');
+        socket.emit('loadAdmins', admins);
+      }
+  
+      socket.join(role === 'user' ? `user:${userId}` : 'admin');
+      socket.userId = userId;
+      socket.role = role;
+  
+      if (role === 'user' && admins.length > 0) {
+        // Load tin nhắn với admin đầu tiên
+        const messages = await getMessages(userId, admins[0]._id);
+        socket.emit('loadMessages', messages);
+      }
+    } catch (err) {
+      console.error('Lỗi khi đăng ký client:', err);
+      socket.emit('error', { message: 'Lỗi server khi đăng ký' });
+    }
+  });
+
+  socket.on('sendMessage', async ({ userId, sender, receiver, content }) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        socket.emit('error', { message: 'ID người dùng không hợp lệ' });
+        return;
+      }
+  
+      if (!/^(user|admin):[0-9a-fA-F]{24}$/.test(receiver)) {
+        socket.emit('error', { message: 'Receiver không hợp lệ' });
+        return;
+      }
+  
+      const message = { sender, receiver, content, timestamp: new Date().toISOString() };
+      await saveMessage(userId, message);
+  
+      const user = await User.findById(userId).select('email profile.full_name');
+      const userInfo = {
+        userId,
+        email: user.email,
+        full_name: user.profile?.full_name || '',
+      };
+  
+      io.to(`user:${userId}`).emit('receiveMessage', { user: userInfo, ...message });
+      const [receiverType, receiverId] = receiver.split(':');
+      if (receiverType === 'admin') {
+        io.to(`admin:${receiverId}`).emit('receiveMessage', { user: userInfo, ...message });
+      }
+    } catch (err) {
+      console.error('Lỗi khi gửi tin nhắn:', err);
+      socket.emit('error', { message: 'Lỗi server khi gửi tin nhắn' });
+    }
+  });
+
+  socket.on('selectAdmin', async ({ userId, adminId }) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(adminId)) {
+        socket.emit('error', { message: 'ID người dùng hoặc admin không hợp lệ' });
+        return;
+      }
+
+      const messages = await getMessages(userId, adminId);
+      socket.emit('loadMessages', messages);
+    } catch (err) {
+      console.error('Lỗi khi chọn admin:', err);
+      socket.emit('error', { message: 'Lỗi server khi chọn admin' });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
+
+
+// Endpoint đăng nhập admin
+app.post("/admin/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Thiếu email hoặc mật khẩu!" });
+  }
+
+  try {
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Sai email hoặc mật khẩu!" });
+    }
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Sai email hoặc mật khẩu!" });
+    }
+
+    res.json({
+      success: true,
+      admin: {
+        _id: admin._id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi server khi đăng nhập admin:", err);
+    res.status(500).json({ success: false, message: "Lỗi server!" });
+  }
+});
+
+// Endpoint lấy danh sách cuộc trò chuyện của admin
+app.get('/api/conversations/:adminId', async (req, res) => {
+  const { adminId } = req.params;
+
+  try {
+    const conversations = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { sender: `admin:${adminId}` }, // Tin nhắn admin gửi
+            { receiver: `admin:${adminId}` }, // Tin nhắn admin nhận
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $unwind: '$user',
+      },
+      {
+        $project: {
+          userId: '$_id',
+          email: '$user.email',
+          full_name: '$user.profile.full_name',
+        },
+      },
+    ]);
+
+    console.log('Conversations:', conversations); // Debug
+    res.json({ success: true, conversations });
+  } catch (err) {
+    console.error('Lỗi khi lấy danh sách cuộc trò chuyện:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách cuộc trò chuyện',
+    });
+  }
+});
+
+// Endpoint lấy lịch sử tin nhắn giữa admin và user
+app.get('/api/messages/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const messages = await Message.find({
+      userId,
+      $or: [
+        { sender: `user:${userId}`, receiver: { $regex: '^admin:' } }, // User gửi cho admin
+        { sender: { $regex: '^admin:' }, receiver: `user:${userId}` }, // Admin gửi cho user
+      ],
+    })
+      .sort({ timestamp: 1 }) // Sắp xếp theo thời gian
+      .lean();
+
+    const formattedMessages = messages.map(({ sender, content, timestamp }) => ({
+      sender,
+      content,
+      timestamp: timestamp.toISOString(),
+    }));
+
+    console.log('Messages for user:', formattedMessages); // Debug
+    res.json({ success: true, messages: formattedMessages });
+  } catch (err) {
+    console.error(`Lỗi khi đọc tin nhắn cho user ${userId}:`, err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy tin nhắn',
+    });
+  }
+});
+
+app.get('/api/recent-messages/:adminId', async (req, res) => {
+  const { adminId } = req.params;
+
+  try {
+    const recentMessages = await Message.aggregate([
+      {
+        $match: {
+          receiver: `admin:${adminId}`, // Chỉ lấy tin nhắn gửi đến admin này
+        },
+      },
+      {
+        $sort: { timestamp: -1 }, // Sắp xếp theo thời gian mới nhất
+      },
+      {
+        $group: {
+          _id: '$userId',
+          message: { $first: '$$ROOT' }, // Lấy tin nhắn mới nhất cho mỗi user
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $unwind: '$user',
+      },
+      {
+        $project: {
+          user: {
+            userId: '$_id',
+            email: '$user.email',
+            full_name: '$user.profile.full_name',
+          },
+          message: {
+            sender: '$message.sender',
+            content: '$message.content',
+            timestamp: '$message.timestamp',
+          },
+        },
+      },
+      {
+        $limit: 10, // Giới hạn 10 tin nhắn gần đây
+      },
+    ]);
+
+    console.log('Recent Messages:', recentMessages); // Debug
+    res.json({ success: true, recentMessages });
+  } catch (err) {
+    console.error('Lỗi khi lấy tin nhắn gần đây:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy tin nhắn gần đây',
+    });
+  }
+});
+
+// Endpoint lấy danh sách người dùng
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await User.find().select("_id email profile");
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error("Lỗi khi lấy danh sách người dùng:", err);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách người dùng",
+    });
+  }
+});
 
 // Các endpoint hiện có (giữ nguyên)
 app.post("/login", async (req, res) => {
@@ -805,8 +1141,7 @@ app.post("/api/notices", async (req, res) => {
   }
 });
 
-
 // Khởi động server
-app.listen(port, () => {
+httpServer.listen(port, () => {
   console.log(`Server chạy trên port ${port}`);
 });

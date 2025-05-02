@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { Schema, model } from 'mongoose';
 
 // Admin Schema
 const adminSchema = new mongoose.Schema(
@@ -164,6 +165,27 @@ const noticeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const MessageSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  sender: {
+    type: String,
+    required: true,
+    validate: {
+      validator: (value) => /^(user|admin):[0-9a-fA-F]{24}$/.test(value),
+      message: 'Sender phải có định dạng "user:<id>" hoặc "admin:<id>" với ID hợp lệ',
+    },
+  },
+  receiver: {
+    type: String,
+    required: true,
+    validate: {
+      validator: (value) => /^(user|admin):[0-9a-fA-F]{24}$/.test(value),
+      message: 'Receiver phải có định dạng "user:<id>" hoặc "admin:<id>" với ID hợp lệ',
+    },
+  },
+  content: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now },
+});
 
 export const Favourite = mongoose.model("Favourite", favouriteSchema);
 export const Admin = mongoose.model("Admin", adminSchema);
@@ -176,3 +198,4 @@ export const UserCart = mongoose.model("UserCart", userCartSchema);
 export const Seller = mongoose.model("Seller", sellerSchema);
 export const Contact = mongoose.model("Contact", contactSchema);
 export const Notice = mongoose.model("Notice", noticeSchema);
+export const Message = model('Message', MessageSchema);
