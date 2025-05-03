@@ -34,6 +34,12 @@ if (!fs.existsSync(profileDir)) {
   fs.mkdirSync(profileDir, { recursive: true });
 }
 
+// Tạo thư mục images/product nếu chưa tồn tại
+const productDir = "images/product";
+if (!fs.existsSync(productDir)) {
+  fs.mkdirSync(productDir, { recursive: true });
+}
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -46,23 +52,52 @@ const io = new Server(httpServer, {
 const port = process.env.PORT || 3000;
 
 // Cấu hình multer để lưu ảnh vào thư mục images/profile
-const storage = multer.diskStorage({
+const profileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "images/profile/");
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalName));
+    cb(null, uniqueSuffix + path.extname(file.originalname || ""));
   },
 });
 
-const upload = multer({
-  storage: storage,
+// Cấu hình multer để lưu ảnh sản phẩm vào thư mục images/product
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "images/product/");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname || ""));
+  },
+});
+
+const uploadProfile = multer({
+  storage: profileStorage,
   fileFilter: (req, file, cb) => {
+    if (!file || !file.originalname) {
+      return cb(null, true); // Cho phép bỏ qua nếu không có file
+    }
     const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(
-      path.extname(file.originalName).toLowerCase()
-    );
+    const extname = filetypes.test(path.extname(file.originalname.toLowerCase()));
+    const mimetype = filetypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Chỉ hỗ trợ file ảnh định dạng JPEG, JPG hoặc PNG!"));
+    }
+  },
+});
+
+const uploadProduct = multer({
+  storage: productStorage,
+  fileFilter: (req, file, cb) => {
+    if (!file || !file.originalname) {
+      return cb(null, true); // Cho phép bỏ qua nếu không có file
+    }
+    const filetypes = /jpeg|jpg|png/;
+    const extname = filetypes.test(path.extname(file.originalname.toLowerCase()));
     const mimetype = filetypes.test(file.mimetype);
     if (extname && mimetype) {
       return cb(null, true);
@@ -94,8 +129,8 @@ async function saveMessage(userId, message) {
   try {
     const newMessage = new Message({
       userId,
-      sender: message.sender, // Ví dụ: "user:<userId>" hoặc "admin:<adminId>"
-      receiver: message.receiver, // Ví dụ: "admin:<adminId>" hoặc "user:<userId>"
+      sender: message.sender,
+      receiver: message.receiver,
       content: message.content,
       timestamp: new Date(),
     });
@@ -139,14 +174,13 @@ io.on("connection", (socket) => {
         return;
       }
   
-      let admins = []; // Khai báo admins mặc định là mảng rỗng
+      let admins = [];
       if (role === 'user') {
         const user = await User.findById(userId);
         if (!user) {
           socket.emit('error', { message: 'Người dùng không tồn tại' });
           return;
         }
-        // Gửi danh sách admin
         admins = await Admin.find().select('_id email name');
         socket.emit('loadAdmins', admins);
       }
@@ -156,7 +190,6 @@ io.on("connection", (socket) => {
       socket.role = role;
   
       if (role === 'user' && admins.length > 0) {
-        // Load tin nhắn với admin đầu tiên
         const messages = await getMessages(userId, admins[0]._id);
         socket.emit('loadMessages', messages);
       }
@@ -219,6 +252,106 @@ io.on("connection", (socket) => {
   });
 });
 
+// Endpoint để thêm sản phẩm mới
+app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
+  const { name, price, info, status, sold, category } = req.body;
+
+  if (!name || !price || !category) {
+    return res.status(400).json({ success: false, message: "Thiếu thông tin bắt buộc (name, price, category)" });
+  }
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(category)) {
+      return res.status(400).json({ success: false, message: "ID danh mục không hợp lệ" });
+    }
+
+    const newProduct = new Product({
+      name,
+      price: parseFloat(price),
+      info: info || "",
+      image: req.file ? `images/product/${req.file.filename}` : "", // Lưu đường dẫn đầy đủ
+      status: status || "available",
+      sold: parseInt(sold) || 0,
+      category,
+    });
+
+    const result = await newProduct.save();
+    res.status(201).json({ success: true, product: result, message: "Thêm sản phẩm thành công" });
+  } catch (err) {
+    console.error("Lỗi khi thêm sản phẩm:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi thêm sản phẩm" });
+  }
+});
+
+// Endpoint để cập nhật sản phẩm
+app.put("/api/products/:id", uploadProduct.single("image"), async (req, res) => {
+  const { id } = req.params;
+  const { name, price, info, status, sold, category } = req.body;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "ID sản phẩm không hợp lệ" });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+    }
+
+    product.name = name || product.name;
+    product.price = price ? parseFloat(price) : product.price;
+    product.info = info || product.info;
+    product.status = status || product.status;
+    product.sold = sold ? parseInt(sold) : product.sold;
+    product.category = category || product.category;
+    if (req.file) {
+      // Xóa ảnh cũ nếu có
+      if (product.image) {
+        const oldImagePath = path.join(__dirname, product.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      product.image = `images/product/${req.file.filename}`; // Lưu đường dẫn đầy đủ
+    }
+
+    const updatedProduct = await product.save();
+    res.json({ success: true, product: updatedProduct, message: "Cập nhật sản phẩm thành công" });
+  } catch (err) {
+    console.error("Lỗi khi cập nhật sản phẩm:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi cập nhật sản phẩm" });
+  }
+});
+
+// Endpoint để xóa sản phẩm
+app.delete("/api/products/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "ID sản phẩm không hợp lệ" });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+    }
+
+    // Xóa ảnh nếu có
+    if (product.image) {
+      const imagePath = path.join(__dirname, product.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
+    await Product.findByIdAndDelete(id);
+    res.json({ success: true, message: "Xóa sản phẩm thành công" });
+  } catch (err) {
+    console.error("Lỗi khi xóa sản phẩm:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi xóa sản phẩm" });
+  }
+});
 
 // Endpoint đăng nhập admin
 app.post("/admin/login", async (req, res) => {
@@ -269,8 +402,8 @@ app.get('/api/conversations/:adminId', async (req, res) => {
       {
         $match: {
           $or: [
-            { sender: `admin:${adminId}` }, // Tin nhắn admin gửi
-            { receiver: `admin:${adminId}` }, // Tin nhắn admin nhận
+            { sender: `admin:${adminId}` },
+            { receiver: `admin:${adminId}` },
           ],
         },
       },
@@ -299,7 +432,7 @@ app.get('/api/conversations/:adminId', async (req, res) => {
       },
     ]);
 
-    console.log('Conversations:', conversations); // Debug
+    console.log('Conversations:', conversations);
     res.json({ success: true, conversations });
   } catch (err) {
     console.error('Lỗi khi lấy danh sách cuộc trò chuyện:', err);
@@ -318,11 +451,11 @@ app.get('/api/messages/:userId', async (req, res) => {
     const messages = await Message.find({
       userId,
       $or: [
-        { sender: `user:${userId}`, receiver: { $regex: '^admin:' } }, // User gửi cho admin
-        { sender: { $regex: '^admin:' }, receiver: `user:${userId}` }, // Admin gửi cho user
+        { sender: `user:${userId}`, receiver: { $regex: '^admin:' } },
+        { sender: { $regex: '^admin:' }, receiver: `user:${userId}` },
       ],
     })
-      .sort({ timestamp: 1 }) // Sắp xếp theo thời gian
+      .sort({ timestamp: 1 })
       .lean();
 
     const formattedMessages = messages.map(({ sender, content, timestamp }) => ({
@@ -331,7 +464,7 @@ app.get('/api/messages/:userId', async (req, res) => {
       timestamp: timestamp.toISOString(),
     }));
 
-    console.log('Messages for user:', formattedMessages); // Debug
+    console.log('Messages for user:', formattedMessages);
     res.json({ success: true, messages: formattedMessages });
   } catch (err) {
     console.error(`Lỗi khi đọc tin nhắn cho user ${userId}:`, err);
@@ -349,16 +482,16 @@ app.get('/api/recent-messages/:adminId', async (req, res) => {
     const recentMessages = await Message.aggregate([
       {
         $match: {
-          receiver: `admin:${adminId}`, // Chỉ lấy tin nhắn gửi đến admin này
+          receiver: `admin:${adminId}`,
         },
       },
       {
-        $sort: { timestamp: -1 }, // Sắp xếp theo thời gian mới nhất
+        $sort: { timestamp: -1 },
       },
       {
         $group: {
           _id: '$userId',
-          message: { $first: '$$ROOT' }, // Lấy tin nhắn mới nhất cho mỗi user
+          message: { $first: '$$ROOT' },
         },
       },
       {
@@ -387,11 +520,11 @@ app.get('/api/recent-messages/:adminId', async (req, res) => {
         },
       },
       {
-        $limit: 10, // Giới hạn 10 tin nhắn gần đây
+        $limit: 10,
       },
     ]);
 
-    console.log('Recent Messages:', recentMessages); // Debug
+    console.log('Recent Messages:', recentMessages);
     res.json({ success: true, recentMessages });
   } catch (err) {
     console.error('Lỗi khi lấy tin nhắn gần đây:', err);
@@ -677,7 +810,6 @@ app.get("/products/suggest", async (req, res) => {
   res.json(suggestions);
 });
 
-// Cập nhật endpoint để lấy thông tin chi tiết người dùng, bao gồm avatar
 app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params;
 
@@ -716,7 +848,6 @@ app.get("/api/user/:userId", async (req, res) => {
   }
 });
 
-// Endpoint để cập nhật thông tin người dùng (giữ nguyên)
 app.put("/api/user/:userId/update", async (req, res) => {
   const { userId } = req.params;
   const { profile, email } = req.body;
@@ -761,6 +892,7 @@ app.put("/api/user/:userId/update", async (req, res) => {
     });
   }
 });
+
 app.post('/api/cart', async (req, res) => {
   const { user, product, quantity } = req.body;
 
@@ -778,11 +910,9 @@ app.post('/api/cart', async (req, res) => {
   }
 });
 
-
-// Endpoint để upload ảnh avatar
 app.post(
   "/api/user/:userId/upload-avatar",
-  upload.single("avatar"),
+  uploadProfile.single("avatar"),
   async (req, res) => {
     const { userId } = req.params;
 
@@ -806,14 +936,13 @@ app.post(
           .json({ success: false, message: "Không có file ảnh được gửi lên" });
       }
 
-      // Chỉ lưu tên ảnh vào database
       const imageName = req.file.filename;
       user.profile.avatar = imageName;
       await user.save();
 
       res.json({
         success: true,
-        avatar: imageName, // Trả về tên ảnh
+        avatar: imageName,
         message: "Upload ảnh avatar thành công",
       });
     } catch (err) {
@@ -925,7 +1054,6 @@ app.get("/api/seller/:userId", async (req, res) => {
   }
 });
 
-
 app.patch("/api/orders/:orderId/confirm", async (req, res) => {
   const { orderId } = req.params;
 
@@ -996,6 +1124,7 @@ app.get('/api/orders/:id', async (req, res) => {
     res.status(500).json({ error: 'Không thể tải thông tin đơn hàng' });
   }
 });
+
 app.get("/api/plants", async (req, res) => {
   try {
     const plants = await Plant.find();
@@ -1023,7 +1152,6 @@ app.get('/api/favourites/:userId/:productId', async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi kiểm tra favourite' });
   }
 });
-
 
 app.post('/api/favourites', async (req, res) => {
   try {
@@ -1092,6 +1220,7 @@ app.get('/products/top-sold', async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi lấy sản phẩm bán chạy' });
   }
 });
+
 app.get("/notice/:userId", async (req, res) => {
   const { userId } = req.params;
 
@@ -1110,6 +1239,7 @@ app.get("/notice/:userId", async (req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 });
+
 app.patch('/notice/read/:id', async (req, res) => {
   try {
     const { id } = req.params;
