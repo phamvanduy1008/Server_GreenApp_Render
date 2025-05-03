@@ -173,7 +173,7 @@ io.on("connection", (socket) => {
         socket.emit('error', { message: 'ID người dùng không hợp lệ' });
         return;
       }
-  
+
       let admins = [];
       if (role === 'user') {
         const user = await User.findById(userId);
@@ -184,11 +184,11 @@ io.on("connection", (socket) => {
         admins = await Admin.find().select('_id email name');
         socket.emit('loadAdmins', admins);
       }
-  
+
       socket.join(role === 'user' ? `user:${userId}` : 'admin');
       socket.userId = userId;
       socket.role = role;
-  
+
       if (role === 'user' && admins.length > 0) {
         const messages = await getMessages(userId, admins[0]._id);
         socket.emit('loadMessages', messages);
@@ -205,22 +205,22 @@ io.on("connection", (socket) => {
         socket.emit('error', { message: 'ID người dùng không hợp lệ' });
         return;
       }
-  
+
       if (!/^(user|admin):[0-9a-fA-F]{24}$/.test(receiver)) {
         socket.emit('error', { message: 'Receiver không hợp lệ' });
         return;
       }
-  
+
       const message = { sender, receiver, content, timestamp: new Date().toISOString() };
       await saveMessage(userId, message);
-  
+
       const user = await User.findById(userId).select('email profile.full_name');
       const userInfo = {
         userId,
         email: user.email,
         full_name: user.profile?.full_name || '',
       };
-  
+
       io.to(`user:${userId}`).emit('receiveMessage', { user: userInfo, ...message });
       const [receiverType, receiverId] = receiver.split(':');
       if (receiverType === 'admin') {
@@ -269,7 +269,7 @@ app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
       name,
       price: parseFloat(price),
       info: info || "",
-      image: req.file ? `images/product/${req.file.filename}` : "", // Lưu đường dẫn đầy đủ
+      image: req.file ? `images/product/${req.file.filename}` : "",
       status: status || "available",
       sold: parseInt(sold) || 0,
       category,
@@ -312,7 +312,7 @@ app.put("/api/products/:id", uploadProduct.single("image"), async (req, res) => 
           fs.unlinkSync(oldImagePath);
         }
       }
-      product.image = `images/product/${req.file.filename}`; // Lưu đường dẫn đầy đủ
+      product.image = `images/product/${req.file.filename}`;
     }
 
     const updatedProduct = await product.save();
@@ -549,6 +549,44 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+// Endpoint để cập nhật giá cây trồng
+app.put("/api/plants/:id", async (req, res) => {
+  const { id } = req.params;
+  const { avgPriceNow } = req.body;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "ID cây trồng không hợp lệ" });
+    }
+
+    const plant = await Plant.findById(id);
+    if (!plant) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cây trồng" });
+    }
+
+    // Lấy giá trị cũ của avgPriceNow và gán vào avgPriceYesterday
+    plant.avgPriceYesterday = plant.avgPriceNow;
+    // Cập nhật avgPriceNow bằng giá trị mới từ client
+    plant.avgPriceNow = avgPriceNow;
+
+    const updatedPlant = await plant.save();
+    res.json({ success: true, plant: updatedPlant, message: "Cập nhật giá thành công" });
+  } catch (err) {
+    console.error("Lỗi khi cập nhật giá cây trồng:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi cập nhật giá" });
+  }
+});
+
+// Endpoint lấy danh sách cây trồng với populate category
+app.get("/api/plants", async (req, res) => {
+  try {
+    const plants = await Plant.find().populate("category");
+    res.json(plants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Các endpoint hiện có (giữ nguyên)
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -631,15 +669,6 @@ app.get("/api/categories", async (req, res) => {
   try {
     const categories = await Category.find();
     res.json(categories);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/plants", async (req, res) => {
-  try {
-    const plants = await Plant.find();
-    res.json(plants);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1125,16 +1154,7 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 });
 
-app.get("/api/plants", async (req, res) => {
-  try {
-    const plants = await Plant.find();
-    res.json(plants);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/favourites/:userId/:productId', async (req, res) => {
+app.get("/api/favourites/:userId/:productId", async (req, res) => {
   try {
     const { userId, productId } = req.params;
     const favourite = await Favourite.findOne({
@@ -1211,8 +1231,8 @@ app.delete('/api/favourites/delete/:userId/:productId', async (req, res) => {
 app.get('/products/top-sold', async (req, res) => {
   try {
     const products = await Product.find()
-      .sort({ sold: -1 })  
-      .limit(5);           
+      .sort({ sold: -1 })
+      .limit(5);
 
     res.status(200).json(products);
   } catch (error) {
@@ -1230,8 +1250,8 @@ app.get("/notice/:userId", async (req, res) => {
 
   try {
     const notices = await Notice.find({ user: userId })
-      .populate("order", "orderCode status") 
-      .sort({ createdAt: -1 }); 
+      .populate("order", "orderCode status")
+      .sort({ createdAt: -1 });
 
     res.status(200).json(notices);
   } catch (error) {
@@ -1249,7 +1269,7 @@ app.patch('/notice/read/:id', async (req, res) => {
       return res.status(404).json({ message: 'Thông báo không tồn tại.' });
     }
 
-    notice.isRead = true;  
+    notice.isRead = true;
     await notice.save();
 
     return res.status(200).json({ message: 'Thông báo đã được đánh dấu là đã đọc.' });
