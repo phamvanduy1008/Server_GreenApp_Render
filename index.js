@@ -20,6 +20,7 @@ import {
   UserCart,
   Favourite,
   Message,
+  Notice
 } from "./schema.js";
 
 import { fileURLToPath } from "url";
@@ -1080,6 +1081,75 @@ app.get("/api/seller/:userId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching seller data:", error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/seller", async (req, res) => {
+  try {
+    // Lấy tất cả đơn hàng và populate thông tin user và product
+    const sellers = await Seller.find()
+      .populate("user", "email profile") // Populate thông tin user (email, profile)
+      .populate("products.product"); // Populate thông tin product
+
+    if (!sellers || sellers.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy đơn hàng nào" });
+    }
+
+    res.json({ success: true, sellers });
+  } catch (error) {
+    console.error("Lỗi khi lấy tất cả đơn hàng:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi server khi lấy tất cả đơn hàng" });
+  }
+});
+
+app.put("/api/seller/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ success: false, message: "ID đơn hàng không hợp lệ" });
+    }
+
+    const updatedSeller = await Seller.findByIdAndUpdate(
+      orderId,
+      { status: status || "processing" }, // Mặc định cập nhật thành "processing"
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSeller) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
+    }
+
+    res.json({ success: true, seller: updatedSeller });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
+    res.status(500).json({ success: false, message: "Lỗi server khi cập nhật trạng thái" });
+  }
+});
+
+app.delete("/api/seller/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ success: false, message: "ID đơn hàng không hợp lệ" });
+    }
+
+    const deletedSeller = await Seller.findByIdAndDelete(orderId);
+
+    if (!deletedSeller) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
+    }
+
+    res.json({ success: true, message: "Đơn hàng đã được xóa thành công" });
+  } catch (error) {
+    console.error("Lỗi khi xóa đơn hàng:", error);
+    res.status(500).json({ success: false, message: "Lỗi server khi xóa đơn hàng" });
   }
 });
 
