@@ -1039,6 +1039,17 @@ app.post("/api/sellers", async (req, res) => {
 
     const result = await Seller.create(newOrder);
 
+    // Cập nhật số lượng sold của các sản phẩm
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (product) {
+        product.sold = (product.sold || 0) + item.quantity;
+        await product.save();
+      } else {
+        console.warn(`Không tìm thấy sản phẩm với ID ${item.productId}`);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: "Đặt hàng thành công",
