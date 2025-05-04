@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
 // Admin Schema
 const adminSchema = new mongoose.Schema(
@@ -20,7 +20,11 @@ const userSchema = new mongoose.Schema(
     profile: {
       full_name: { type: String, default: "" },
       username: { type: String, default: "" },
-      gender: { type: String, enum: ["male", "female", "other", ""], default: "" },
+      gender: {
+        type: String,
+        enum: ["male", "female", "other", ""],
+        default: "",
+      },
       birthday: { type: Date, default: null },
       phone: { type: String, default: "" },
       avatar: { type: String, default: "" },
@@ -49,7 +53,11 @@ const plantSchema = new mongoose.Schema(
     name: { type: String, required: true, unique: true },
     avgPriceYesterday: { type: Number, default: 0 },
     avgPriceNow: { type: Number, default: 0 },
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
   },
   { timestamps: true }
 );
@@ -68,7 +76,11 @@ const inforPlantSchema = new mongoose.Schema(
     disease: { type: String, default: "" },
     harvest: { type: String, default: "" },
     preserve: { type: String, default: "" },
-    plant: { type: mongoose.Schema.Types.ObjectId, ref: "Plant", required: true },
+    plant: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Plant",
+      required: true,
+    },
   },
   { timestamps: true }
 );
@@ -80,10 +92,18 @@ const productSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     info: { type: String, default: "" },
     image: { type: String, default: "" },
-    status: { type: String, enum: ["available", "out_of_stock"], default: "available" },
+    status: {
+      type: String,
+      enum: ["available", "out_of_stock"],
+      default: "available",
+    },
     evaluate: { type: Number, default: 5 },
-    sold: { type: Number, default: 0 }, 
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    sold: { type: Number, default: 0 },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
   },
   { timestamps: true }
 );
@@ -91,7 +111,11 @@ const productSchema = new mongoose.Schema(
 // UserCart Schema
 const userCartSchema = new mongoose.Schema(
   {
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
     quantity: { type: Number, required: true, min: 1 },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
@@ -104,16 +128,20 @@ const sellerSchema = new mongoose.Schema({
 
   products: [
     {
-      product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+      product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+      },
       quantity: { type: Number, required: true },
-      price: { type: Number, required: true }
-    }
+      price: { type: Number, required: true },
+    },
   ],
 
   status: {
     type: String,
     enum: ["pending", "processing", "delivered", "cancelled"],
-    default: "pending"
+    default: "pending",
   },
 
   orderCode: { type: String, required: true, unique: true },
@@ -126,9 +154,8 @@ const sellerSchema = new mongoose.Schema({
   total_price: { type: Number },
   dateOrder: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
 });
-
 
 const contactSchema = new mongoose.Schema(
   {
@@ -150,7 +177,11 @@ const favouriteSchema = new mongoose.Schema(
 const noticeSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    order: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Seller",
+      required: true,
+    },
 
     title: { type: String, required: true },
     message: { type: String, required: true },
@@ -159,20 +190,21 @@ const noticeSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: ["pending", "processing", "delivered", "cancelled"],
-      default: "pending"
+      default: "pending",
     },
   },
   { timestamps: true }
 );
 
 const MessageSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   sender: {
     type: String,
     required: true,
     validate: {
       validator: (value) => /^(user|admin):[0-9a-fA-F]{24}$/.test(value),
-      message: 'Sender phải có định dạng "user:<id>" hoặc "admin:<id>" với ID hợp lệ',
+      message:
+        'Sender phải có định dạng "user:<id>" hoặc "admin:<id>" với ID hợp lệ',
     },
   },
   receiver: {
@@ -180,12 +212,54 @@ const MessageSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: (value) => /^(user|admin):[0-9a-fA-F]{24}$/.test(value),
-      message: 'Receiver phải có định dạng "user:<id>" hoặc "admin:<id>" với ID hợp lệ',
+      message:
+        'Receiver phải có định dạng "user:<id>" hoặc "admin:<id>" với ID hợp lệ',
     },
   },
   content: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
 });
+// Review Schema
+const reviewSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5,
+  },
+  comment: {
+    type: String,
+    required: true,
+  },
+  characteristic: {
+    type: String,
+    default: "Nâu đậm",
+  },
+  fit: {
+    type: String,
+    default: "Đúng chuẩn",
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+export const Review = mongoose.model("Review", reviewSchema);
 
 export const Favourite = mongoose.model("Favourite", favouriteSchema);
 export const Admin = mongoose.model("Admin", adminSchema);
@@ -198,4 +272,4 @@ export const UserCart = mongoose.model("UserCart", userCartSchema);
 export const Seller = mongoose.model("Seller", sellerSchema);
 export const Contact = mongoose.model("Contact", contactSchema);
 export const Notice = mongoose.model("Notice", noticeSchema);
-export const Message = model('Message', MessageSchema);
+export const Message = model("Message", MessageSchema);
