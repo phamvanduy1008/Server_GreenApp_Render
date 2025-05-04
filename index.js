@@ -21,7 +21,8 @@ import {
   Favourite,
   Message,
   Notice,
-  Shipper
+  Shipper,
+  Review
 } from "./schema.js";
 
 import { fileURLToPath } from "url";
@@ -1199,6 +1200,8 @@ app.patch("/api/orders/:orderId/cancel", async (req, res) => {
 app.get('/api/favourites/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log("userId", userId);
+    
 
     const favourite = await Favourite.findOne({ user: userId }).populate('products');
 
