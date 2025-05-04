@@ -761,11 +761,9 @@ await db.collection("sellers").insertMany(sellers);
         updatedAt: new Date(),
       },
     ];
-    
-    
-  
     await db.collection("notices").insertMany(notices);
 
+    
     console.log("✅ Đã thêm đầy đủ dữ liệu mẫu!");
   } catch (error) {
     console.error("Lỗi khi thêm dữ liệu:", error);

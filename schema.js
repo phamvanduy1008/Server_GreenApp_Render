@@ -219,7 +219,28 @@ const MessageSchema = new mongoose.Schema({
   content: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
 });
-// Review Schema
+const shipperAccSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    full_name: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    avatar: { type: String, default: "" },
+    isActive: { type: Boolean, default: true },
+    assignedOrders: [
+      {
+        sellers: { type: mongoose.Schema.Types.ObjectId, ref: "Seller" },
+        status: { type: String, enum: ["processing", "delivered", "cancelled"], default:"processing" },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
+      }
+    ]
+    
+  },
+  { timestamps: true }
+);
+
+export const Shipper = mongoose.model("Shipper", shipperAccSchema);
 const reviewSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -260,7 +281,6 @@ const reviewSchema = new mongoose.Schema({
 });
 
 export const Review = mongoose.model("Review", reviewSchema);
-
 export const Favourite = mongoose.model("Favourite", favouriteSchema);
 export const Admin = mongoose.model("Admin", adminSchema);
 export const User = mongoose.model("User", userSchema);

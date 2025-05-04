@@ -21,7 +21,7 @@ import {
   Favourite,
   Message,
   Notice,
-  Review,
+  Shipper
 } from "./schema.js";
 
 import { fileURLToPath } from "url";
@@ -82,9 +82,7 @@ const uploadProfile = multer({
       return cb(null, true); // Cho phép bỏ qua nếu không có file
     }
     const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(
-      path.extname(file.originalname.toLowerCase())
-    );
+    const extname = filetypes.test(path.extname(file.originalname.toLowerCase()));
     const mimetype = filetypes.test(file.mimetype);
     if (extname && mimetype) {
       return cb(null, true);
@@ -101,9 +99,7 @@ const uploadProduct = multer({
       return cb(null, true); // Cho phép bỏ qua nếu không có file
     }
     const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(
-      path.extname(file.originalname.toLowerCase())
-    );
+    const extname = filetypes.test(path.extname(file.originalname.toLowerCase()));
     const mimetype = filetypes.test(file.mimetype);
     if (extname && mimetype) {
       return cb(null, true);
@@ -164,10 +160,7 @@ async function getMessages(userId, adminId) {
       timestamp: timestamp.toISOString(),
     }));
   } catch (err) {
-    console.error(
-      `Lỗi khi đọc tin nhắn cho user ${userId} và admin ${adminId}:`,
-      err
-    );
+    console.error(`Lỗi khi đọc tin nhắn cho user ${userId} và admin ${adminId}:`, err);
     return [];
   }
 }
@@ -176,101 +169,83 @@ async function getMessages(userId, adminId) {
 io.on("connection", (socket) => {
   console.log("New client connected:", socket.id);
 
-  socket.on("register", async ({ userId, role }) => {
+  socket.on('register', async ({ userId, role }) => {
     try {
-      if (role === "user" && !mongoose.Types.ObjectId.isValid(userId)) {
-        socket.emit("error", { message: "ID người dùng không hợp lệ" });
+      if (role === 'user' && !mongoose.Types.ObjectId.isValid(userId)) {
+        socket.emit('error', { message: 'ID người dùng không hợp lệ' });
         return;
       }
 
       let admins = [];
-      if (role === "user") {
+      if (role === 'user') {
         const user = await User.findById(userId);
         if (!user) {
-          socket.emit("error", { message: "Người dùng không tồn tại" });
+          socket.emit('error', { message: 'Người dùng không tồn tại' });
           return;
         }
-        admins = await Admin.find().select("_id email name");
-        socket.emit("loadAdmins", admins);
+        admins = await Admin.find().select('_id email name');
+        socket.emit('loadAdmins', admins);
       }
 
-      socket.join(role === "user" ? `user:${userId}` : "admin");
+      socket.join(role === 'user' ? `user:${userId}` : 'admin');
       socket.userId = userId;
       socket.role = role;
 
-      if (role === "user" && admins.length > 0) {
+      if (role === 'user' && admins.length > 0) {
         const messages = await getMessages(userId, admins[0]._id);
-        socket.emit("loadMessages", messages);
+        socket.emit('loadMessages', messages);
       }
     } catch (err) {
-      console.error("Lỗi khi đăng ký client:", err);
-      socket.emit("error", { message: "Lỗi server khi đăng ký" });
+      console.error('Lỗi khi đăng ký client:', err);
+      socket.emit('error', { message: 'Lỗi server khi đăng ký' });
     }
   });
 
-  socket.on("sendMessage", async ({ userId, sender, receiver, content }) => {
+  socket.on('sendMessage', async ({ userId, sender, receiver, content }) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
-        socket.emit("error", { message: "ID người dùng không hợp lệ" });
+        socket.emit('error', { message: 'ID người dùng không hợp lệ' });
         return;
       }
 
       if (!/^(user|admin):[0-9a-fA-F]{24}$/.test(receiver)) {
-        socket.emit("error", { message: "Receiver không hợp lệ" });
+        socket.emit('error', { message: 'Receiver không hợp lệ' });
         return;
       }
 
-      const message = {
-        sender,
-        receiver,
-        content,
-        timestamp: new Date().toISOString(),
-      };
+      const message = { sender, receiver, content, timestamp: new Date().toISOString() };
       await saveMessage(userId, message);
 
-      const user = await User.findById(userId).select(
-        "email profile.full_name"
-      );
+      const user = await User.findById(userId).select('email profile.full_name');
       const userInfo = {
         userId,
         email: user.email,
-        full_name: user.profile?.full_name || "",
+        full_name: user.profile?.full_name || '',
       };
 
-      io.to(`user:${userId}`).emit("receiveMessage", {
-        user: userInfo,
-        ...message,
-      });
-      const [receiverType, receiverId] = receiver.split(":");
-      if (receiverType === "admin") {
-        io.to(`admin:${receiverId}`).emit("receiveMessage", {
-          user: userInfo,
-          ...message,
-        });
+      io.to(`user:${userId}`).emit('receiveMessage', { user: userInfo, ...message });
+      const [receiverType, receiverId] = receiver.split(':');
+      if (receiverType === 'admin') {
+        io.to(`admin:${receiverId}`).emit('receiveMessage', { user: userInfo, ...message });
       }
     } catch (err) {
-      console.error("Lỗi khi gửi tin nhắn:", err);
-      socket.emit("error", { message: "Lỗi server khi gửi tin nhắn" });
+      console.error('Lỗi khi gửi tin nhắn:', err);
+      socket.emit('error', { message: 'Lỗi server khi gửi tin nhắn' });
     }
   });
 
-  socket.on("selectAdmin", async ({ userId, adminId }) => {
+  socket.on('selectAdmin', async ({ userId, adminId }) => {
     try {
-      if (
-        !mongoose.Types.ObjectId.isValid(userId) ||
-        !mongoose.Types.ObjectId.isValid(adminId)
-      ) {
-        socket.emit("error", {
-          message: "ID người dùng hoặc admin không hợp lệ",
-        });
+      if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(adminId)) {
+        socket.emit('error', { message: 'ID người dùng hoặc admin không hợp lệ' });
         return;
       }
 
       const messages = await getMessages(userId, adminId);
-      socket.emit("loadMessages", messages);
+      socket.emit('loadMessages', messages);
     } catch (err) {
-      console.error("Lỗi khi chọn admin:", err);
-      socket.emit("error", { message: "Lỗi server khi chọn admin" });
+      console.error('Lỗi khi chọn admin:', err);
+      socket.emit('error', { message: 'Lỗi server khi chọn admin' });
     }
   });
 
@@ -284,17 +259,12 @@ app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
   const { name, price, info, status, sold, category } = req.body;
 
   if (!name || !price || !category) {
-    return res.status(400).json({
-      success: false,
-      message: "Thiếu thông tin bắt buộc (name, price, category)",
-    });
+    return res.status(400).json({ success: false, message: "Thiếu thông tin bắt buộc (name, price, category)" });
   }
 
   try {
     if (!mongoose.Types.ObjectId.isValid(category)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "ID danh mục không hợp lệ" });
+      return res.status(400).json({ success: false, message: "ID danh mục không hợp lệ" });
     }
 
     const newProduct = new Product({
@@ -308,72 +278,52 @@ app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
     });
 
     const result = await newProduct.save();
-    res.status(201).json({
-      success: true,
-      product: result,
-      message: "Thêm sản phẩm thành công",
-    });
+    res.status(201).json({ success: true, product: result, message: "Thêm sản phẩm thành công" });
   } catch (err) {
     console.error("Lỗi khi thêm sản phẩm:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Lỗi server khi thêm sản phẩm" });
+    res.status(500).json({ success: false, message: "Lỗi server khi thêm sản phẩm" });
   }
 });
 
 // Endpoint để cập nhật sản phẩm
-app.put(
-  "/api/products/:id",
-  uploadProduct.single("image"),
-  async (req, res) => {
-    const { id } = req.params;
-    const { name, price, info, status, sold, category } = req.body;
+app.put("/api/products/:id", uploadProduct.single("image"), async (req, res) => {
+  const { id } = req.params;
+  const { name, price, info, status, sold, category } = req.body;
 
-    try {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res
-          .status(400)
-          .json({ success: false, message: "ID sản phẩm không hợp lệ" });
-      }
-
-      const product = await Product.findById(id);
-      if (!product) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Không tìm thấy sản phẩm" });
-      }
-
-      product.name = name || product.name;
-      product.price = price ? parseFloat(price) : product.price;
-      product.info = info || product.info;
-      product.status = status || product.status;
-      product.sold = sold ? parseInt(sold) : product.sold;
-      product.category = category || product.category;
-      if (req.file) {
-        // Xóa ảnh cũ nếu có
-        if (product.image) {
-          const oldImagePath = path.join(__dirname, product.image);
-          if (fs.existsSync(oldImagePath)) {
-            fs.unlinkSync(oldImagePath);
-          }
-        }
-        product.image = `images/product/${req.file.filename}`;
-      }
-
-      const updatedProduct = await product.save();
-      res.json({
-        success: true,
-        product: updatedProduct,
-        message: "Cập nhật sản phẩm thành công",
-      });
-    } catch (err) {
-      console.error("Lỗi khi cập nhật sản phẩm:", err);
-      res
-        .status(500)
-        .json({ success: false, message: "Lỗi server khi cập nhật sản phẩm" });
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "ID sản phẩm không hợp lệ" });
     }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+    }
+
+    product.name = name || product.name;
+    product.price = price ? parseFloat(price) : product.price;
+    product.info = info || product.info;
+    product.status = status || product.status;
+    product.sold = sold ? parseInt(sold) : product.sold;
+    product.category = category || product.category;
+    if (req.file) {
+      // Xóa ảnh cũ nếu có
+      if (product.image) {
+        const oldImagePath = path.join(__dirname, product.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      product.image = `images/product/${req.file.filename}`;
+    }
+
+    const updatedProduct = await product.save();
+    res.json({ success: true, product: updatedProduct, message: "Cập nhật sản phẩm thành công" });
+  } catch (err) {
+    console.error("Lỗi khi cập nhật sản phẩm:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi cập nhật sản phẩm" });
   }
-);
+});
 
 // Endpoint để xóa sản phẩm
 app.delete("/api/products/:id", async (req, res) => {
@@ -381,16 +331,12 @@ app.delete("/api/products/:id", async (req, res) => {
 
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "ID sản phẩm không hợp lệ" });
+      return res.status(400).json({ success: false, message: "ID sản phẩm không hợp lệ" });
     }
 
     const product = await Product.findById(id);
     if (!product) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy sản phẩm" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
     }
 
     // Xóa ảnh nếu có
@@ -405,9 +351,7 @@ app.delete("/api/products/:id", async (req, res) => {
     res.json({ success: true, message: "Xóa sản phẩm thành công" });
   } catch (err) {
     console.error("Lỗi khi xóa sản phẩm:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Lỗi server khi xóa sản phẩm" });
+    res.status(500).json({ success: false, message: "Lỗi server khi xóa sản phẩm" });
   }
 });
 
@@ -452,7 +396,7 @@ app.post("/admin/login", async (req, res) => {
 });
 
 // Endpoint lấy danh sách cuộc trò chuyện của admin
-app.get("/api/conversations/:adminId", async (req, res) => {
+app.get('/api/conversations/:adminId', async (req, res) => {
   const { adminId } = req.params;
 
   try {
@@ -467,75 +411,73 @@ app.get("/api/conversations/:adminId", async (req, res) => {
       },
       {
         $group: {
-          _id: "$userId",
+          _id: '$userId',
         },
       },
       {
         $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "user",
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
         },
       },
       {
-        $unwind: "$user",
+        $unwind: '$user',
       },
       {
         $project: {
-          userId: "$_id",
-          email: "$user.email",
-          full_name: "$user.profile.full_name",
+          userId: '$_id',
+          email: '$user.email',
+          full_name: '$user.profile.full_name',
         },
       },
     ]);
 
-    console.log("Conversations:", conversations);
+    console.log('Conversations:', conversations);
     res.json({ success: true, conversations });
   } catch (err) {
-    console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", err);
+    console.error('Lỗi khi lấy danh sách cuộc trò chuyện:', err);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy danh sách cuộc trò chuyện",
+      message: 'Lỗi server khi lấy danh sách cuộc trò chuyện',
     });
   }
 });
 
 // Endpoint lấy lịch sử tin nhắn giữa admin và user
-app.get("/api/messages/:userId", async (req, res) => {
+app.get('/api/messages/:userId', async (req, res) => {
   const { userId } = req.params;
 
   try {
     const messages = await Message.find({
       userId,
       $or: [
-        { sender: `user:${userId}`, receiver: { $regex: "^admin:" } },
-        { sender: { $regex: "^admin:" }, receiver: `user:${userId}` },
+        { sender: `user:${userId}`, receiver: { $regex: '^admin:' } },
+        { sender: { $regex: '^admin:' }, receiver: `user:${userId}` },
       ],
     })
       .sort({ timestamp: 1 })
       .lean();
 
-    const formattedMessages = messages.map(
-      ({ sender, content, timestamp }) => ({
-        sender,
-        content,
-        timestamp: timestamp.toISOString(),
-      })
-    );
+    const formattedMessages = messages.map(({ sender, content, timestamp }) => ({
+      sender,
+      content,
+      timestamp: timestamp.toISOString(),
+    }));
 
-    console.log("Messages for user:", formattedMessages);
+    console.log('Messages for user:', formattedMessages);
     res.json({ success: true, messages: formattedMessages });
   } catch (err) {
     console.error(`Lỗi khi đọc tin nhắn cho user ${userId}:`, err);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy tin nhắn",
+      message: 'Lỗi server khi lấy tin nhắn',
     });
   }
 });
 
-app.get("/api/recent-messages/:adminId", async (req, res) => {
+app.get('/api/recent-messages/:adminId', async (req, res) => {
   const { adminId } = req.params;
 
   try {
@@ -550,32 +492,32 @@ app.get("/api/recent-messages/:adminId", async (req, res) => {
       },
       {
         $group: {
-          _id: "$userId",
-          message: { $first: "$$ROOT" },
+          _id: '$userId',
+          message: { $first: '$$ROOT' },
         },
       },
       {
         $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "user",
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
         },
       },
       {
-        $unwind: "$user",
+        $unwind: '$user',
       },
       {
         $project: {
           user: {
-            userId: "$_id",
-            email: "$user.email",
-            full_name: "$user.profile.full_name",
+            userId: '$_id',
+            email: '$user.email',
+            full_name: '$user.profile.full_name',
           },
           message: {
-            sender: "$message.sender",
-            content: "$message.content",
-            timestamp: "$message.timestamp",
+            sender: '$message.sender',
+            content: '$message.content',
+            timestamp: '$message.timestamp',
           },
         },
       },
@@ -584,13 +526,13 @@ app.get("/api/recent-messages/:adminId", async (req, res) => {
       },
     ]);
 
-    console.log("Recent Messages:", recentMessages);
+    console.log('Recent Messages:', recentMessages);
     res.json({ success: true, recentMessages });
   } catch (err) {
-    console.error("Lỗi khi lấy tin nhắn gần đây:", err);
+    console.error('Lỗi khi lấy tin nhắn gần đây:', err);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy tin nhắn gần đây",
+      message: 'Lỗi server khi lấy tin nhắn gần đây',
     });
   }
 });
@@ -616,16 +558,12 @@ app.put("/api/plants/:id", async (req, res) => {
 
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "ID cây trồng không hợp lệ" });
+      return res.status(400).json({ success: false, message: "ID cây trồng không hợp lệ" });
     }
 
     const plant = await Plant.findById(id);
     if (!plant) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy cây trồng" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy cây trồng" });
     }
 
     // Lấy giá trị cũ của avgPriceNow và gán vào avgPriceYesterday
@@ -634,16 +572,10 @@ app.put("/api/plants/:id", async (req, res) => {
     plant.avgPriceNow = avgPriceNow;
 
     const updatedPlant = await plant.save();
-    res.json({
-      success: true,
-      plant: updatedPlant,
-      message: "Cập nhật giá thành công",
-    });
+    res.json({ success: true, plant: updatedPlant, message: "Cập nhật giá thành công" });
   } catch (err) {
     console.error("Lỗi khi cập nhật giá cây trồng:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Lỗi server khi cập nhật giá" });
+    res.status(500).json({ success: false, message: "Lỗi server khi cập nhật giá" });
   }
 });
 
@@ -992,11 +924,11 @@ app.put("/api/user/:userId/update", async (req, res) => {
   }
 });
 
-app.post("/api/cart", async (req, res) => {
+app.post('/api/cart', async (req, res) => {
   const { user, product, quantity } = req.body;
 
   if (!user || !product || !quantity) {
-    return res.status(400).json({ error: "Thiếu thông tin giỏ hàng" });
+    return res.status(400).json({ error: 'Thiếu thông tin giỏ hàng' });
   }
 
   try {
@@ -1005,7 +937,7 @@ app.post("/api/cart", async (req, res) => {
     res.status(201).json(cartItem);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Lỗi khi thêm vào giỏ hàng" });
+    res.status(500).json({ error: 'Lỗi khi thêm vào giỏ hàng' });
   }
 });
 
@@ -1056,16 +988,7 @@ app.post(
 
 app.post("/api/sellers", async (req, res) => {
   try {
-    const {
-      userId,
-      items,
-      name,
-      address,
-      phone,
-      paymentMethod,
-      fee,
-      total_price,
-    } = req.body;
+    const { userId, items, name, address, phone, paymentMethod, fee, total_price } = req.body;
 
     if (!userId || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -1073,18 +996,10 @@ app.post("/api/sellers", async (req, res) => {
         message: "Thiếu thông tin userId hoặc items không hợp lệ",
       });
     }
-    if (
-      !name ||
-      !address ||
-      !phone ||
-      !paymentMethod ||
-      fee === undefined ||
-      total_price === undefined
-    ) {
+    if (!name || !address || !phone || !paymentMethod || fee === undefined || total_price === undefined) {
       return res.status(400).json({
         success: false,
-        message:
-          "Thiếu thông tin bắt buộc (name, address, phone, paymentMethod, fee, total_price)",
+        message: "Thiếu thông tin bắt buộc (name, address, phone, paymentMethod, fee, total_price)",
       });
     }
 
@@ -1142,9 +1057,7 @@ app.get("/api/seller/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const orders = await Seller.find({ user: userId }).populate(
-      "products.product"
-    );
+    const orders = await Seller.find({ user: userId }).populate("products.product");
 
     const categorized = {
       pending: [],
@@ -1153,19 +1066,16 @@ app.get("/api/seller/:userId", async (req, res) => {
       cancelled: [],
     };
 
-    orders.forEach((order) => {
+    orders.forEach(order => {
       const orderWithId = {
         _id: order._id,
         ...order.toObject(),
       };
 
       if (order.status === "pending") categorized.pending.push(orderWithId);
-      else if (order.status === "processing")
-        categorized.processing.push(orderWithId);
-      else if (order.status === "delivered")
-        categorized.delivered.push(orderWithId);
-      else if (order.status === "cancelled")
-        categorized.cancelled.push(orderWithId);
+      else if (order.status === "processing") categorized.processing.push(orderWithId);
+      else if (order.status === "delivered") categorized.delivered.push(orderWithId);
+      else if (order.status === "cancelled") categorized.cancelled.push(orderWithId);
     });
 
     res.status(200).json(categorized);
@@ -1203,9 +1113,7 @@ app.put("/api/seller/:orderId", async (req, res) => {
 
   try {
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "ID đơn hàng không hợp lệ" });
+      return res.status(400).json({ success: false, message: "ID đơn hàng không hợp lệ" });
     }
 
     const updatedSeller = await Seller.findByIdAndUpdate(
@@ -1215,17 +1123,13 @@ app.put("/api/seller/:orderId", async (req, res) => {
     );
 
     if (!updatedSeller) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy đơn hàng" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
     }
 
     res.json({ success: true, seller: updatedSeller });
   } catch (error) {
     console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Lỗi server khi cập nhật trạng thái" });
+    res.status(500).json({ success: false, message: "Lỗi server khi cập nhật trạng thái" });
   }
 });
 
@@ -1234,25 +1138,19 @@ app.delete("/api/seller/:orderId", async (req, res) => {
 
   try {
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "ID đơn hàng không hợp lệ" });
+      return res.status(400).json({ success: false, message: "ID đơn hàng không hợp lệ" });
     }
 
     const deletedSeller = await Seller.findByIdAndDelete(orderId);
 
     if (!deletedSeller) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy đơn hàng" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
     }
 
     res.json({ success: true, message: "Đơn hàng đã được xóa thành công" });
   } catch (error) {
     console.error("Lỗi khi xóa đơn hàng:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Lỗi server khi xóa đơn hàng" });
+    res.status(500).json({ success: false, message: "Lỗi server khi xóa đơn hàng" });
   }
 });
 
@@ -1298,62 +1196,33 @@ app.patch("/api/orders/:orderId/cancel", async (req, res) => {
   }
 });
 
-app.get("/api/orders/:id", async (req, res) => {
+app.get('/api/favourites/:userId', async (req, res) => {
   try {
-    const orderId = req.params.id;
+    const { userId } = req.params;
 
-    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ error: "ID đơn hàng không hợp lệ" });
+    const favourite = await Favourite.findOne({ user: userId }).populate('products');
+
+    if (!favourite) {
+      return res.status(200).json({ user: userId, products: [] });
     }
 
-    const order = await Seller.findById(orderId)
-      .populate("products.product", "name price image info")
-      .lean();
-
-    if (!order) {
-      return res.status(404).json({ error: "Không tìm thấy đơn hàng" });
-    }
-
-    if (order.dateOrder) {
-      order.dateOrder = order.dateOrder.toISOString();
-    }
-    order.createdAt = order.createdAt.toISOString();
-    order.updatedAt = order.updatedAt.toISOString();
-
-    res.json(order);
+    res.status(200).json(favourite);
   } catch (error) {
-    console.error("Error fetching order details:", error);
-    res.status(500).json({ error: "Không thể tải thông tin đơn hàng" });
+    console.error('Error fetching favourites:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách yêu thích' });
   }
 });
 
-app.get("/api/favourites/:userId/:productId", async (req, res) => {
-  try {
-    const { userId, productId } = req.params;
-    const favourite = await Favourite.findOne({
-      user: userId,
-      products: productId,
-    });
-
-    if (favourite) {
-      return res.status(200).json({ favorited: true });
-    }
-
-    res.status(200).json({ favorited: false });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Lỗi server khi kiểm tra favourite" });
-  }
-});
-
-app.post("/api/favourites", async (req, res) => {
+app.post('/api/favourites', async (req, res) => {
   try {
     const { user, product } = req.body;
+    console.log("user:", user);
+    console.log("product:", product);
+
+    
 
     if (!user || !product) {
-      return res
-        .status(400)
-        .json({ message: "Thiếu thông tin user hoặc product" });
+      return res.status(400).json({ message: 'Thiếu thông tin user hoặc product' });
     }
 
     let favourite = await Favourite.findOne({ user });
@@ -1365,66 +1234,87 @@ app.post("/api/favourites", async (req, res) => {
       });
     } else {
       if (favourite.products.includes(product)) {
-        return res
-          .status(400)
-          .json({ message: "Sản phẩm đã có trong danh sách yêu thích" });
+        return res.status(400).json({ message: 'Sản phẩm đã có trong danh sách yêu thích' });
       }
       favourite.products.push(product);
     }
 
     await favourite.save();
-    res
-      .status(201)
-      .json({ message: "Đã thêm sản phẩm vào danh sách yêu thích", favourite });
+    res.status(201).json({ message: 'Đã thêm sản phẩm vào danh sách yêu thích', favourite });
   } catch (error) {
-    console.error("Error adding to favourites:", error);
-    res.status(500).json({
-      message: "Lỗi server khi thêm sản phẩm vào danh sách yêu thích",
-    });
+    console.error('Error adding to favourites:', error);
+    res.status(500).json({ message: 'Lỗi server khi thêm sản phẩm vào danh sách yêu thích' });
   }
 });
 
-app.delete("/api/favourites/delete/:userId/:productId", async (req, res) => {
+app.delete('/api/favourites/:userId/:productId', async (req, res) => {
   try {
     const { userId, productId } = req.params;
 
     const favourite = await Favourite.findOne({ user: userId });
 
     if (!favourite) {
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy danh sách yêu thích" });
+      return res.status(404).json({ message: 'Không tìm thấy danh sách yêu thích' });
     }
 
     const productIndex = favourite.products.indexOf(productId);
     if (productIndex === -1) {
-      return res
-        .status(404)
-        .json({ message: "Sản phẩm không có trong danh sách yêu thích" });
+      return res.status(404).json({ message: 'Sản phẩm không có trong danh sách yêu thích' });
     }
 
     favourite.products.splice(productIndex, 1);
     await favourite.save();
 
-    res
-      .status(200)
-      .json({ message: "Đã xóa sản phẩm khỏi danh sách yêu thích", favourite });
+    res.status(200).json({ message: 'Đã xóa sản phẩm khỏi danh sách yêu thích', favourite });
   } catch (error) {
-    console.error("Error removing from favourites:", error);
-    res.status(500).json({
-      message: "Lỗi server khi xóa sản phẩm khỏi danh sách yêu thích",
-    });
+    console.error('Error removing from favourites:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa sản phẩm khỏi danh sách yêu thích' });
   }
 });
 
-app.get("/products/top-sold", async (req, res) => {
+app.get('/api/orders/:id', async (req, res) => {
   try {
-    const products = await Product.find().sort({ sold: -1 }).limit(5);
+    const orderId = req.params.id;
+
+    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: 'ID đơn hàng không hợp lệ' });
+    }
+
+    const order = await Seller.findById(orderId)
+      .populate('products.product', 'name price image info')
+      .lean();
+
+    if (!order) {
+      return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+    }
+
+    if (order.dateOrder) {
+      order.dateOrder = order.dateOrder.toISOString();
+    }
+    order.createdAt = order.createdAt.toISOString();
+    order.updatedAt = order.updatedAt.toISOString();
+
+    res.json(order);
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    res.status(500).json({ error: 'Không thể tải thông tin đơn hàng' });
+  }
+});
+
+
+
+
+
+app.get('/products/top-sold', async (req, res) => {
+  try {
+    const products = await Product.find()
+      .sort({ sold: -1 })
+      .limit(5);
 
     res.status(200).json(products);
   } catch (error) {
-    console.error("Error fetching top sold products:", error);
-    res.status(500).json({ message: "Lỗi server khi lấy sản phẩm bán chạy" });
+    console.error('Error fetching top sold products:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy sản phẩm bán chạy' });
   }
 });
 
@@ -1447,26 +1337,22 @@ app.get("/notice/:userId", async (req, res) => {
   }
 });
 
-app.patch("/notice/read/:id", async (req, res) => {
+app.patch('/notice/read/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const notice = await Notice.findById(id);
 
     if (!notice) {
-      return res.status(404).json({ message: "Thông báo không tồn tại." });
+      return res.status(404).json({ message: 'Thông báo không tồn tại.' });
     }
 
     notice.isRead = true;
     await notice.save();
 
-    return res
-      .status(200)
-      .json({ message: "Thông báo đã được đánh dấu là đã đọc." });
+    return res.status(200).json({ message: 'Thông báo đã được đánh dấu là đã đọc.' });
   } catch (error) {
     console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Lỗi hệ thống khi cập nhật thông báo." });
+    return res.status(500).json({ message: 'Lỗi hệ thống khi cập nhật thông báo.' });
   }
 });
 
@@ -1482,7 +1368,6 @@ app.post("/api/notices", async (req, res) => {
   }
 });
 
-// Endpoint lấy đánh giá của sản phẩm
 app.get("/api/reviews/:productId", async (req, res) => {
   const { productId } = req.params;
 
@@ -1571,6 +1456,299 @@ app.post("/api/reviews", async (req, res) => {
       .json({ message: "Lỗi server khi lưu đánh giá", error: error.message });
   }
 });
+
+//Shipper
+
+app.get("/api/shipper", async (req, res) => {
+  try {
+    const orders = await Seller.find({ status: "pending" }).populate("products.product");
+    res.status(200).json(orders); 
+  } catch (error) {
+    console.error("Error fetching seller data:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/shipper_status/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const shipper = await Shipper.findById(id)
+      .populate("assignedOrders.sellers") // Populating sellers here
+      .lean();
+
+    if (!shipper) {
+      return res.status(404).json({ message: "Shipper not found" });
+    }
+
+    const ordersByStatus = {
+      processing: [],
+      delivered: [],
+      cancelled: [],
+    };
+
+    for (const order of shipper.assignedOrders || []) {
+      if (["processing", "delivered", "cancelled"].includes(order.status)) {
+        ordersByStatus[order.status].push(order); 
+      }
+    }
+
+    res.status(200).json(ordersByStatus);
+  } catch (error) {
+    console.error("Error fetching shipper orders by status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.patch("/api/shipper_accept", async (req, res) => {
+  const { id, orderID } = req.body;
+
+  try {
+    const updatedSeller = await Seller.findByIdAndUpdate(
+      orderID,
+      { status: "processing" },
+      { new: true }
+    );
+
+    if (!updatedSeller) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const shipper = await Shipper.findById(id);
+    if (!shipper) {
+      return res.status(404).json({ message: "Shipper not found" });
+    }
+
+    shipper.assignedOrders.push({
+      sellers: orderID,
+      status: "processing",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await shipper.save();
+
+    const sellerUser = updatedSeller.user;  
+
+    const newNotice = new Notice({
+      user: sellerUser,  
+      order: updatedSeller._id,
+      title: "Đơn hàng đã giao cho đơn vị vận chuyển",
+      message: `Đơn hàng ${updatedSeller.orderCode} đã giao cho đơn vị vận chuyển.`,
+      type: "processing",
+    });
+
+    await newNotice.save();
+    res.status(200).json({ message: "Order processing", order: updatedSeller });
+  } catch (error) {
+    console.error("Error processing order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+app.post('/login_shipper', async (req, res) => {
+  const { email, password } = req.body;
+
+  console.log('Email nhận được:', email);
+  console.log('password nhận được:', password);
+
+  if (!email || !password)
+    return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
+
+  try {
+    // Sử dụng findOne để tìm một shipper duy nhất
+    const shipper = await Shipper.findOne({ email });
+
+    if (!shipper)
+      return res.status(404).json({ message: 'Tài khoản không tồn tại' });
+
+    // Kiểm tra mật khẩu
+    const isMatch = await bcrypt.compare(password, shipper.password);
+    if (!isMatch)
+      return res.status(401).json({ message: 'Mật khẩu không đúng' });
+
+    // Bỏ mật khẩu khi trả về thông tin người dùng
+    const { password: _, ...shipperInfo } = shipper.toObject();
+
+    // Trả về thông tin người dùng sau khi đăng nhập thành công
+    res.status(200).json({ message: 'Đăng nhập thành công', user: shipperInfo });
+  } catch (err) {
+    console.error('Lỗi đăng nhập shipper:', err);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+});
+app.get("/api/shipper", async (req, res) => {
+  try {
+    const orders = await Seller.find({ status: "pending" }).populate("products.product");
+    res.status(200).json(orders); 
+  } catch (error) {
+    console.error("Error fetching seller data:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/shipper_status/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const shipper = await Shipper.findById(id)
+      .populate("assignedOrders.sellers") // Populating sellers here
+      .lean();
+
+    if (!shipper) {
+      return res.status(404).json({ message: "Shipper not found" });
+    }
+
+    const ordersByStatus = {
+      processing: [],
+      delivered: [],
+      cancelled: [],
+    };
+
+    for (const order of shipper.assignedOrders || []) {
+      if (["processing", "delivered", "cancelled"].includes(order.status)) {
+        ordersByStatus[order.status].push(order); 
+      }
+    }
+
+    res.status(200).json(ordersByStatus);
+  } catch (error) {
+    console.error("Error fetching shipper orders by status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+app.patch("/api/shipper_complete", async (req, res) => {
+  const { id, orderId } = req.body;
+
+  if (!orderId) {
+    return res.status(400).json({ message: "Missing orderId in request body" });
+  }
+
+  try {
+    const shipper = await Shipper.findById(id);
+    if (!shipper) {
+      return res.status(404).json({ message: "Shipper not found" });
+    }
+
+    const orderIndex = shipper.assignedOrders.findIndex(order =>
+      order.sellers?.toString() === orderId
+    );
+
+    if (orderIndex === -1) {
+      return res.status(404).json({ message: "Order not found in shipper's assignedOrders" });
+    }
+
+    shipper.assignedOrders[orderIndex].status = "delivered";
+    shipper.assignedOrders[orderIndex].updatedAt = new Date();
+    await shipper.save();
+
+    const updatedSeller = await Seller.findByIdAndUpdate(
+      orderId,
+      { status: "delivered", updatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!updatedSeller) {
+      return res.status(404).json({ message: "Seller (order) not found" });
+    }
+
+    const sellerUser = updatedSeller.user;  
+
+    if (!sellerUser) {
+      return res.status(400).json({ message: "Seller does not have a user reference" });
+    }
+
+    const newNotice = new Notice({
+      user: sellerUser,  
+      order: updatedSeller._id,
+      title: "Đơn hàng đã hoàn thành",
+      message: `Đơn hàng ${updatedSeller.orderCode} đã được giao thành công.`,
+      type: "delivered",
+    });
+
+    await newNotice.save();
+
+    res.status(200).json({
+      message: "Order marked as delivered and notice created",
+      shipper: shipper,
+      order: updatedSeller,
+      notice: newNotice,
+    });
+
+  } catch (error) {
+    console.error("Error completing order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.patch("/api/shipper_cancel", async (req, res) => { 
+  const { id, orderId } = req.body;
+
+  if (!orderId) {
+    return res.status(400).json({ message: "Missing orderId in request body" });
+  }
+
+  try {
+    const shipper = await Shipper.findById(id);
+    if (!shipper) {
+      return res.status(404).json({ message: "Shipper not found" });
+    }
+
+    const orderIndex = shipper.assignedOrders.findIndex(order =>
+      order.sellers?.toString() === orderId
+    );
+
+    if (orderIndex === -1) {
+      return res.status(404).json({ message: "Order not found in shipper's assignedOrders" });
+    }
+
+    shipper.assignedOrders[orderIndex].status = "cancelled";
+    shipper.assignedOrders[orderIndex].updatedAt = new Date();
+    await shipper.save();
+
+    const updatedSeller = await Seller.findByIdAndUpdate(
+      orderId,
+      { status: "cancelled", updatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!updatedSeller) {
+      return res.status(404).json({ message: "Seller (order) not found" });
+    }
+
+    const sellerUser = updatedSeller.user;  
+
+    if (!sellerUser) {
+      return res.status(400).json({ message: "Seller does not have a user reference" });
+    }
+
+    const newNotice = new Notice({
+      user: sellerUser,  
+      order: updatedSeller._id,
+      title: "Đơn hàng đã bị hủy",
+      message: `Đơn hàng ${updatedSeller.orderCode} giao không thành công thành công.`,
+      type: "cancelled",
+    });
+
+    await newNotice.save();
+
+    res.status(200).json({
+      message: "Order marked as delivered and notice created",
+      shipper: shipper,
+      order: updatedSeller,
+      notice: newNotice,
+    });
+
+  } catch (error) {
+    console.error("Error completing order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
 
 // Khởi động server
 httpServer.listen(port, () => {
