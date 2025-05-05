@@ -1007,7 +1007,6 @@ app.put("/api/user/:userId/update", async (req, res) => {
     });
   }
 });
-
 app.post('/api/cart', async (req, res) => {
   const { user, product, quantity } = req.body;
 
@@ -1016,14 +1015,23 @@ app.post('/api/cart', async (req, res) => {
   }
 
   try {
-    const cartItem = new UserCart({ user, product, quantity });
-    await cartItem.save();
-    res.status(201).json(cartItem);
+    const existingCartItem = await UserCart.findOne({ user, product });
+
+    if (existingCartItem) {
+      existingCartItem.quantity += quantity;
+      await existingCartItem.save();
+      return res.status(200).json(existingCartItem);
+    } else {
+      const newCartItem = new UserCart({ user, product, quantity });
+      await newCartItem.save();
+      return res.status(201).json(newCartItem);
+    }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Lỗi khi thêm vào giỏ hàng' });
+    return res.status(500).json({ error: 'Lỗi khi thêm vào giỏ hàng' });
   }
 });
+
 
 app.post(
   "/api/user/:userId/upload-avatar",
