@@ -396,6 +396,21 @@ app.post("/admin/login", async (req, res) => {
   }
 });
 
+app.post('/get-user-info', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const user = await User.findOne({ email }); 
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.json(user); 
+  } catch (err) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 // Endpoint lấy danh sách cuộc trò chuyện của admin
 app.get('/api/conversations/:adminId', async (req, res) => {
   const { adminId } = req.params;
@@ -665,6 +680,45 @@ app.post("/register", async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Lỗi server khi đăng ký!" });
+  }
+});
+
+app.post("/update-infor", async (req, res) => {
+  try {
+    const { email, full_name, username, gender } = req.body;
+
+    if (!email || !full_name || !username || !gender) {
+      return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
+    }
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const DEFAULT_PASSWORD = "user123";
+      const salt = await bcrypt.genSalt(10);
+      const hashed = await bcrypt.hash(DEFAULT_PASSWORD, salt);
+
+      user = new User({
+        email,
+        password: hashed,
+        profile: { full_name, username, gender },
+      });
+
+      await user.save();
+      return res
+        .status(201)
+        .json({ message: "Tạo user mới thành công", user });
+    }
+
+    user.profile.full_name = full_name;
+    user.profile.username  = username;
+    user.profile.gender    = gender;
+
+    await user.save();
+    return res.json({ message: "Cập nhật thông tin thành công", user });
+  } catch (err) {
+    console.error("Lỗi /update-infor:", err);
+    return res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -1572,7 +1626,6 @@ app.post('/login_shipper', async (req, res) => {
     return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
 
   try {
-    // Sử dụng findOne để tìm một shipper duy nhất
     const shipper = await Shipper.findOne({ email });
 
     if (!shipper)

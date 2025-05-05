@@ -766,7 +766,7 @@ await db.collection("sellers").insertMany(sellers);
     const shippers = [
       {
         email: '1',
-        password: '1',
+        password: await bcrypt.hash('1', 10),
         full_name: 'Nguyễn Văn A',
         phone: '0901234567',
         avatar: 'https://example.com/avatar1.jpg',
@@ -774,14 +774,14 @@ await db.collection("sellers").insertMany(sellers);
         assignedOrders: []
       },
       {
-        email: 'shipper2@example.com',
-        password: 'hashed_password_2',
-        full_name: 'Trần Thị B',
-        phone: '0912345678',
-        avatar: 'https://example.com/avatar2.jpg',
+        email: '2',
+        password: await bcrypt.hash('2', 10),
+        full_name: 'Nguyễn Văn B',
+        phone: '0901232222222222',
+        avatar: 'https://example.com/avatar22.jpg',
         isActive: true,
         assignedOrders: []
-      }
+      },
     ];
     await db.collection("shippers").insertMany(shippers);
 
