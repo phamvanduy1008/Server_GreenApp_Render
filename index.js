@@ -1842,7 +1842,111 @@ app.patch("/api/shipper_cancel", async (req, res) => {
   }
 });
 
+app.get("/api/dashboard", async (req, res) => {
+  try {
+    // Tổng số người dùng
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ isActive: true });
 
+    // Tổng số đơn hàng và trạng thái
+    const totalOrders = await Seller.countDocuments();
+    const orderStatus = {
+      pending: await Seller.countDocuments({ status: "pending" }),
+      resolved: await Seller.countDocuments({ status: "resolved" }),
+      processing: await Seller.countDocuments({ status: "processing" }),
+      delivered: await Seller.countDocuments({ status: "delivered" }),
+      cancelled: await Seller.countDocuments({ status: "cancelled" }),
+    };
+
+    // Tổng doanh thu (từ đơn hàng delivered)
+    const totalRevenue = await Seller.aggregate([
+      { $match: { status: "delivered" } },
+      { $group: { _id: null, total: { $sum: "$total_price" } } },
+    ]).then((result) => result[0]?.total || 0);
+
+    // Doanh thu theo ngày (7 ngày gần nhất)
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const revenueByDay = await Seller.aggregate([
+      {
+        $match: {
+          status: "delivered",
+          dateOrder: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$dateOrder" } },
+          total: { $sum: "$total_price" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Tạo danh sách đầy đủ 7 ngày
+    const revenueByDayFull = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split("T")[0];
+      const found = revenueByDay.find((r) => r._id === dateStr);
+      revenueByDayFull.push({
+        date: dateStr,
+        total: found ? found.total : 0,
+      });
+    }
+
+    // Tổng số sản phẩm
+    const totalProducts = await Product.countDocuments();
+    const availableProducts = await Product.countDocuments({ status: "available" });
+
+    // Top 5 sản phẩm bán chạy
+    const topProducts = await Product.find()
+      .sort({ sold: -1 })
+      .limit(5)
+      .select("name sold price _id");
+
+    // Số shipper hoạt động
+    const activeShippers = await Shipper.countDocuments({ isActive: true });
+
+    // 5 đơn hàng gần đây
+    const recentOrders = await Seller.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("user", "email profile.full_name")
+      .select("orderCode full_name total_price status dateOrder createdAt");
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        totalOrders,
+        orderStatus,
+        totalRevenue,
+        revenueByDay: revenueByDayFull,
+        totalProducts,
+        availableProducts,
+        activeShippers,
+        recentOrders: recentOrders.map((o) => ({
+          _id: o._id,
+          orderCode: o.orderCode,
+          full_name: o.full_name,
+          total_price: o.total_price,
+          status: o.status,
+          dateOrder: o.dateOrder,
+        })),
+        topProducts: topProducts.map((p) => ({
+          _id: p._id,
+          name: p.name,
+          sold: p.sold,
+          price: p.price,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi endpoint /api/dashboard:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi tải dữ liệu dashboard" });
+  }
+});
 
 
 // Khởi động server
