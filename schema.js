@@ -140,7 +140,7 @@ const sellerSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["pending", "processing", "delivered", "cancelled"],
+    enum: ["pending", "resolved","processing", "delivered", "cancelled"],
     default: "pending",
   },
 
@@ -189,7 +189,7 @@ const noticeSchema = new mongoose.Schema(
     isRead: { type: Boolean, default: false },
     type: {
       type: String,
-      enum: ["pending", "processing", "delivered", "cancelled"],
+      enum: ["pending", "resolved", "processing", "delivered", "cancelled"],
       default: "pending",
     },
   },

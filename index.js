@@ -1164,6 +1164,7 @@ app.get("/api/seller/:userId", async (req, res) => {
 
     const categorized = {
       pending: [],
+      resolved: [],
       processing: [],
       delivered: [],
       cancelled: [],
@@ -1176,6 +1177,7 @@ app.get("/api/seller/:userId", async (req, res) => {
       };
 
       if (order.status === "pending") categorized.pending.push(orderWithId);
+      else if (order.status === "resolved") categorized.resolved.push(orderWithId);
       else if (order.status === "processing") categorized.processing.push(orderWithId);
       else if (order.status === "delivered") categorized.delivered.push(orderWithId);
       else if (order.status === "cancelled") categorized.cancelled.push(orderWithId);
@@ -1187,6 +1189,7 @@ app.get("/api/seller/:userId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 app.get("/api/seller", async (req, res) => {
   try {
@@ -1566,11 +1569,72 @@ app.post("/api/reviews", async (req, res) => {
 
 app.get("/api/shipper", async (req, res) => {
   try {
-    const orders = await Seller.find({ status: "pending" }).populate("products.product");
+    const orders = await Seller.find({ status: "resolved" }).populate("products.product");
     res.status(200).json(orders); 
   } catch (error) {
     console.error("Error fetching seller data:", error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/shipper_status/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const shipper = await Shipper.findById(id)
+      .populate("assignedOrders.sellers") // Populating sellers here
+      .lean();
+
+    if (!shipper) {
+      return res.status(404).json({ message: "Shipper not found" });
+    }
+
+    const ordersByStatus = {
+      processing: [],
+      delivered: [],
+      cancelled: [],
+    };
+
+    for (const order of shipper.assignedOrders || []) {
+      if (["processing", "delivered", "cancelled"].includes(order.status)) {
+        ordersByStatus[order.status].push(order); 
+      }
+    }
+
+    res.status(200).json(ordersByStatus);
+  } catch (error) {
+    console.error("Error fetching shipper orders by status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+app.post('/login_shipper', async (req, res) => {
+  const { email, password } = req.body;
+
+  console.log('Email nhận được:', email);
+  console.log('password nhận được:', password);
+
+  if (!email || !password)
+    return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
+
+  try {
+    const shipper = await Shipper.findOne({ email });
+
+    if (!shipper)
+      return res.status(404).json({ message: 'Tài khoản không tồn tại' });
+
+    const isMatch = await bcrypt.compare(password, shipper.password);
+    if (!isMatch)
+      return res.status(401).json({ message: 'Mật khẩu không đúng' });
+
+    const { password: _, ...shipperInfo } = shipper.toObject();
+
+    res.status(200).json({ message: 'Đăng nhập thành công', user: shipperInfo });
+  } catch (err) {
+    console.error('Lỗi đăng nhập shipper:', err);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
 
@@ -1639,7 +1703,7 @@ app.patch("/api/shipper_accept", async (req, res) => {
       user: sellerUser,  
       order: updatedSeller._id,
       title: "Đơn hàng đã giao cho đơn vị vận chuyển",
-      message: `Đơn hàng ${updatedSeller.orderCode} đã giao cho đơn vị vận chuyển.`,
+      message: `Đơn hàng ${updatedSeller.orderCode} đã giao cho đơn vị vận chuyển và đang trên đường đến chỗ bạn. Vui lòng chú ý điện thoại!`,
       type: "processing",
     });
 
@@ -1647,79 +1711,6 @@ app.patch("/api/shipper_accept", async (req, res) => {
     res.status(200).json({ message: "Order processing", order: updatedSeller });
   } catch (error) {
     console.error("Error processing order:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
-
-app.post('/login_shipper', async (req, res) => {
-  const { email, password } = req.body;
-
-  console.log('Email nhận được:', email);
-  console.log('password nhận được:', password);
-
-  if (!email || !password)
-    return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
-
-  try {
-    const shipper = await Shipper.findOne({ email });
-
-    if (!shipper)
-      return res.status(404).json({ message: 'Tài khoản không tồn tại' });
-
-    // Kiểm tra mật khẩu
-    const isMatch = await bcrypt.compare(password, shipper.password);
-    if (!isMatch)
-      return res.status(401).json({ message: 'Mật khẩu không đúng' });
-
-    // Bỏ mật khẩu khi trả về thông tin người dùng
-    const { password: _, ...shipperInfo } = shipper.toObject();
-
-    // Trả về thông tin người dùng sau khi đăng nhập thành công
-    res.status(200).json({ message: 'Đăng nhập thành công', user: shipperInfo });
-  } catch (err) {
-    console.error('Lỗi đăng nhập shipper:', err);
-    res.status(500).json({ message: 'Lỗi máy chủ' });
-  }
-});
-app.get("/api/shipper", async (req, res) => {
-  try {
-    const orders = await Seller.find({ status: "pending" }).populate("products.product");
-    res.status(200).json(orders); 
-  } catch (error) {
-    console.error("Error fetching seller data:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.get("/api/shipper_status/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const shipper = await Shipper.findById(id)
-      .populate("assignedOrders.sellers") // Populating sellers here
-      .lean();
-
-    if (!shipper) {
-      return res.status(404).json({ message: "Shipper not found" });
-    }
-
-    const ordersByStatus = {
-      processing: [],
-      delivered: [],
-      cancelled: [],
-    };
-
-    for (const order of shipper.assignedOrders || []) {
-      if (["processing", "delivered", "cancelled"].includes(order.status)) {
-        ordersByStatus[order.status].push(order); 
-      }
-    }
-
-    res.status(200).json(ordersByStatus);
-  } catch (error) {
-    console.error("Error fetching shipper orders by status:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
