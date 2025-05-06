@@ -28,8 +28,18 @@ const userSchema = new mongoose.Schema(
       birthday: { type: Date, default: null },
       phone: { type: String, default: "" },
       avatar: { type: String, default: "" },
-      address: { type: String, default: "" },
     },
+    addresses: [
+      {
+        _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, // cần có để xoá từng địa chỉ
+        name: { type: String, required: true },
+        phone: { type: String, required: true },
+        address: { type: String, required: true },
+        ward: { type: String },
+        district: { type: String },
+        city: { type: String },
+      },
+    ],
     isActive: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
   },
@@ -140,7 +150,7 @@ const sellerSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["pending", "resolved","processing", "delivered", "cancelled"],
+    enum: ["pending", "resolved", "processing", "delivered", "cancelled"],
     default: "pending",
   },
 
@@ -230,17 +240,19 @@ const shipperAccSchema = new mongoose.Schema(
     assignedOrders: [
       {
         sellers: { type: mongoose.Schema.Types.ObjectId, ref: "Seller" },
-        status: { type: String, enum: ["processing", "delivered", "cancelled"], default:"processing" },
+        status: {
+          type: String,
+          enum: ["processing", "delivered", "cancelled"],
+          default: "processing",
+        },
         createdAt: { type: Date, default: Date.now },
-        updatedAt: { type: Date, default: Date.now }
-      }
-    ]
-    
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
 
-export const Shipper = mongoose.model("Shipper", shipperAccSchema);
 const reviewSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -293,3 +305,4 @@ export const Seller = mongoose.model("Seller", sellerSchema);
 export const Contact = mongoose.model("Contact", contactSchema);
 export const Notice = mongoose.model("Notice", noticeSchema);
 export const Message = model("Message", MessageSchema);
+export const Shipper = mongoose.model("Shipper", shipperAccSchema);
