@@ -1172,7 +1172,7 @@ app.post("/api/sellers", async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Thiếu thông tin bắt buộc (name, address, phone, paymentMethod, fee, total_price)",
+          "Vui lòng điền đủ thông tin",
       });
     }
 

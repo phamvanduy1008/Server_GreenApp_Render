@@ -49,16 +49,15 @@ async function run() {
     const users = [
       {
         _id: new ObjectId(),
-        email: "duy@gmail.com",
-        password: await bcrypt.hash("123456", 10),
+        email: "11",
+        password: await bcrypt.hash("1", 10),
         profile: {
-          full_name: "Nguyen Van Binh",
-          username: "binhnguyen",
+          full_name: "Phạm Văn Duy ",
+          username: "duyduy",
           gender: "male",
           birthday: new Date("1995-06-05"),
           phone: "0394865791",
           avatar: "",
-          address: "470 Tran Dai Nghia, Hòa Quý, Ngũ Hành Sơn, Đà Nẵng",
         },
         isActive: true,
         isVerified: true,
@@ -76,7 +75,6 @@ async function run() {
           birthday: new Date("1997-07-25"),
           phone: "0987654321",
           avatar: "",
-          address: "123 Le Loi, Hai Chau, Đà Nẵng",
         },
         isActive: true,
         isVerified: false,
