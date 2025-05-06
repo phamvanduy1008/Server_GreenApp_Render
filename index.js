@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { exec } from 'child_process';
 import {
   User,
   Admin,
@@ -76,6 +77,21 @@ const productStorage = multer.diskStorage({
   },
 });
 
+const predictStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const predictDir = 'images/predict';
+    if (!fs.existsSync(predictDir)) {
+      fs.mkdirSync(predictDir, { recursive: true });
+    }
+    cb(null, predictDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname || ''));
+  },
+});
+
+
 const uploadProfile = multer({
   storage: profileStorage,
   fileFilter: (req, file, cb) => {
@@ -110,6 +126,23 @@ const uploadProduct = multer({
       return cb(null, true);
     } else {
       cb(new Error("Chỉ hỗ trợ file ảnh định dạng JPEG, JPG hoặc PNG!"));
+    }
+  },
+});
+
+const uploadPredict = multer({
+  storage: predictStorage,
+  fileFilter: (req, file, cb) => {
+    if (!file || !file.originalname) {
+      return cb(null, true);
+    }
+    const filetypes = /jpeg|jpg|png/;
+    const extname = filetypes.test(path.extname(file.originalname.toLowerCase()));
+    const mimetype = filetypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Chỉ hỗ trợ file ảnh định dạng JPEG, JPG hoặc PNG!'));
     }
   },
 });
@@ -2252,6 +2285,56 @@ app.delete("/api/delete_addresses/:userId/:addressId", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Lỗi server khi xóa địa chỉ" });
   }
+});
+
+app.post('/predict', uploadPredict.single('image'), (req, res) => {
+  console.log('Received predict request');
+  if (!req.file) {
+    console.log('No image uploaded');
+    return res.status(400).json({ error: 'No image uploaded' });
+  }
+
+  const imagePath = req.file.path;
+  console.log(`Image uploaded to: ${imagePath}`);
+
+  // Normalize path for cross-platform compatibility
+  const normalizedImagePath = imagePath.replace(/\\/g, '/');
+  const command = `python predict.py "${normalizedImagePath}"`;
+  console.log(`Executing command: ${command}`);
+
+  exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
+    // Delete the image after processing
+    fs.unlink(imagePath, (unlinkErr) => {
+      if (unlinkErr) {
+        console.error('Error deleting image:', imagePath, unlinkErr);
+      } else {
+        console.log('Deleted image:', imagePath);
+      }
+    });
+
+    if (err) {
+      console.error('Python script error:', err);
+      console.error('STDERR:', stderr);
+      return res.status(500).json({ error: 'Prediction failed', details: stderr || err.message });
+    }
+
+    console.log('Python script stdout:', stdout);
+    console.log('Python script stderr:', stderr);
+
+    if (!stdout) {
+      console.error('No output from Python script');
+      return res.status(500).json({ error: 'No prediction returned from script' });
+    }
+
+    try {
+      const result = JSON.parse(stdout.trim());
+      console.log('Prediction result:', result);
+      res.json(result); // Return { prediction, solutions }
+    } catch (parseErr) {
+      console.error('Error parsing Python output:', parseErr);
+      res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
+    }
+  });
 });
 
 // Khởi động server
