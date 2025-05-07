@@ -28,7 +28,7 @@ async function run() {
         _id: new ObjectId(),
         email: "admin001@gmail.com",
         password: await bcrypt.hash("admin001", 10),
-        name: "Admin One",
+        name: "Hỗ trợ viên",
         role: "superadmin",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -37,7 +37,7 @@ async function run() {
         _id: new ObjectId(),
         email: "admin002@gmail.com",
         password: await bcrypt.hash("admin002", 10),
-        name: "Admin Two",
+        name: "Chăm sóc khách hàng",
         role: "admin",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -49,8 +49,8 @@ async function run() {
     const users = [
       {
         _id: new ObjectId(),
-        email: "11",
-        password: await bcrypt.hash("1", 10),
+        email: "duy@gmail.com",
+        password: await bcrypt.hash("123456", 10),
         profile: {
           full_name: "Phạm Văn Duy ",
           username: "duyduy",
@@ -61,41 +61,6 @@ async function run() {
         },
         isActive: true,
         isVerified: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        email: "lethithuvi2507@gmail.com",
-        password: await bcrypt.hash("vigamai", 10),
-        profile: {
-          full_name: "Le Thi Thu Vi",
-          username: "thuvi",
-          gender: "female",
-          birthday: new Date("1997-07-25"),
-          phone: "0987654321",
-          avatar: "",
-        },
-        isActive: true,
-        isVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        email: "nguyenbi379@gmail.com",
-        password: await bcrypt.hash("123456", 10),
-        profile: {
-          full_name: "Nguyen Van Bi",
-          username: "nguyenbi",
-          gender: "male",
-          birthday: new Date("1990-03-15"),
-          phone: "0912345678",
-          avatar: "",
-          address: "456 Nguyen Van Linh, Thanh Khe, Đà Nẵng",
-        },
-        isActive: true,
-        isVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -335,7 +300,6 @@ async function run() {
 
     // Seed Products
     const products = [
-      // 🌱 Cà phê - categories[1]
       {
         _id: new ObjectId(),
         name: "Cà phê Arabica",
@@ -388,7 +352,6 @@ async function run() {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      // 🌳 Cao su - categories[1]
       {
         _id: new ObjectId(),
         name: "Cao su PB235",
@@ -415,7 +378,6 @@ async function run() {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      // 🍈 Xoài - categories[0]
       {
         _id: new ObjectId(),
         name: "Xoài Cát Chu",
@@ -468,7 +430,6 @@ async function run() {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      // 🥬 Rau - categories[3]
       {
         _id: new ObjectId(),
         name: "Rau Muống",
@@ -521,7 +482,6 @@ async function run() {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      // 🌾 Lúa - categories[2]
       {
         _id: new ObjectId(),
         name: "Lúa ST21",
@@ -570,7 +530,6 @@ async function run() {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      // 🌿 Mía - categories[1]
       {
         _id: new ObjectId(),
         name: "Mía Comus",
@@ -605,10 +564,6 @@ async function run() {
         user: users[0]._id,
         products: [products[0]._id, products[1]._id],
       },
-      {
-        user: users[1]._id,
-        products: [products[2]._id],
-      },
     ];
     
 
@@ -616,170 +571,32 @@ async function run() {
 
     // Seed UserCarts
     const userCarts = [
-      {
-        _id: new ObjectId(),
-        product: products[0]._id,
-        quantity: 2,
-        user: users[0]._id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        product: products[1]._id,
-        quantity: 3,
-        user: users[0]._id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        product: products[3]._id,
-        quantity: 5,
-        user: users[1]._id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        product: products[4]._id,
-        quantity: 10,
-        user: users[1]._id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
     ];
     await db.collection("usercarts").insertMany(userCarts);
 
    // Seed Sellers (Orders)
 const sellers = [
-  {
-    _id: new ObjectId(),
-    user: users[1]._id,
-    products: [
-      {
-        product: products[0]._id,
-        quantity: 2,
-        price: 20000,
-      },
-      {
-        product: products[1]._id,
-        quantity: 3,
-        price: 20000,
-      },
-    ],
-    status: "pending",
-    orderCode: "ORD001",
-    full_name: "Le Thi Thu Vi",
-    phone: "0987654321",
-    address: "123 Le Loi, Hai Chau, Đà Nẵng",
-    paymentMethod: "cod",
-    fee: 50000,
-    total_price: 1500000,
-    dateOrder: new Date("2024-06-05"),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
 ];
 
 await db.collection("sellers").insertMany(sellers);
 
 
-    // Seed Contacts
-    const contacts = [
-      {
-        _id: new ObjectId(),
-        content: "Tôi muốn biết thêm thông tin về cà phê Arabica",
-        user: users[0]._id,
-        status: "pending",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        content: "Tôi cần tư vấn về cách trồng rau muống sạch",
-        user: users[1]._id,
-        status: "pending",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        content: "Cam sành có sẵn quanh năm không?",
-        user: users[2]._id,
-        status: "resolved",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
-    await db.collection("contacts").insertMany(contacts);
-    const notices = [
-      {
-        _id: new ObjectId(),
-        user: users[0]._id,
-        order: sellers[0]._id,
-        title: "Đơn hàng đã bị hủy",
-        message: `Đơn hàng ${sellers[0].orderCode} của bạn đã bị hủy. Nếu có thắc mắc, vui lòng liên hệ hỗ trợ.`,
-        type: "cancelled",
-        isRead: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        user: users[0]._id,
-        order: sellers[0]._id,
-        title: "Đơn hàng đã giao thành công",
-        message: `Đơn hàng ${sellers[0].orderCode} của bạn đã được giao thành công. Cảm ơn bạn đã mua hàng!`,
-        type: "delivered",
-        isRead: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        user: users[0]._id,
-        order: sellers[0]._id,
-        title: "Đơn hàng đang được xử lý",
-        message: `Đơn hàng ${sellers[0].orderCode} của bạn đang được đóng gói và chuẩn bị giao.`,
-        type: "processing",
-        isRead: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        user: users[0]._id,
-        order: sellers[0]._id,
-        title: "Đơn hàng đang chờ xác nhận",
-        message: `Đơn hàng ${sellers[0].orderCode} của bạn đang chờ xác nhận từ người bán.`,
-        type: "pending",
-        isRead: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+       const notices = [
+      
     ];
     await db.collection("notices").insertMany(notices);
 
     const shippers = [
       {
-        email: '1',
-        password: await bcrypt.hash('1', 10),
-        full_name: 'Nguyễn Văn A',
+        email: 'shipper@gmail.com',
+        password: await bcrypt.hash('shipper001', 10),
+        full_name: 'Nguyễn Văn An',
         phone: '0901234567',
-        avatar: 'https://example.com/avatar1.jpg',
+        avatar: '',
         isActive: true,
         assignedOrders: []
       },
-      {
-        email: '2',
-        password: await bcrypt.hash('2', 10),
-        full_name: 'Nguyễn Văn B',
-        phone: '0901232222222222',
-        avatar: 'https://example.com/avatar22.jpg',
-        isActive: true,
-        assignedOrders: []
-      },
+      
     ];
     await db.collection("shippers").insertMany(shippers);
 

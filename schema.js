@@ -153,9 +153,8 @@ const sellerSchema = new mongoose.Schema({
     enum: ["pending", "resolved", "processing", "delivered", "cancelled"],
     default: "pending",
   },
-
   orderCode: { type: String, required: true, unique: true },
-
+  momoId :{type: String},
   full_name: { type: String },
   phone: { type: String },
   address: { type: String },
@@ -166,15 +165,6 @@ const sellerSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
-
-const contactSchema = new mongoose.Schema(
-  {
-    content: { type: String, required: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    status: { type: String, enum: ["pending", "resolved"], default: "pending" },
-  },
-  { timestamps: true }
-);
 
 const favouriteSchema = new mongoose.Schema(
   {
@@ -302,7 +292,6 @@ export const Infor = mongoose.model("Infors", inforPlantSchema);
 export const Product = mongoose.model("Product", productSchema);
 export const UserCart = mongoose.model("UserCart", userCartSchema);
 export const Seller = mongoose.model("Seller", sellerSchema);
-export const Contact = mongoose.model("Contact", contactSchema);
 export const Notice = mongoose.model("Notice", noticeSchema);
 export const Message = model("Message", MessageSchema);
 export const Shipper = mongoose.model("Shipper", shipperAccSchema);
