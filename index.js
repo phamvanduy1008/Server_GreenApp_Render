@@ -18,7 +18,6 @@ import {
   User,
   Admin,
   Category,
-  Contact,
   Infor,
   Plant,
   Product,
