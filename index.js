@@ -2303,7 +2303,7 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
 
   // Normalize path for cross-platform compatibility
   const normalizedImagePath = imagePath.replace(/\\/g, '/');
-  const command = `python predict.py "${normalizedImagePath}"`;
+  const command = `python AI/predict.py "${normalizedImagePath}"`;
   console.log(`Executing command: ${command}`);
 
   exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
