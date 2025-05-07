@@ -1,14 +1,19 @@
-import express from "express";
-import mongoose from "mongoose";
-import bodyParser from "body-parser";
-import bcrypt from "bcrypt";
-import cors from "cors";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import express from 'express';
+import mongoose from 'mongoose';
+import bodyParser from 'body-parser';
+import bcrypt from 'bcrypt';
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import axios from 'axios';
+import crypto from 'crypto';
+import config from './config.js';
+import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { exec } from 'child_process';
+
 import {
   User,
   Admin,
@@ -26,11 +31,19 @@ import {
   Review,
 } from "./schema.js";
 
-import { fileURLToPath } from "url";
 
-// Giả lập __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const app = express();
+const httpServer = createServer(app);
+const port = process.env.PORT || 3000;
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use("/images", express.static(path.join(__dirname, "images")));
+
+
 
 // Tạo thư mục images/profile nếu chưa tồn tại
 const profileDir = "images/profile";
@@ -44,8 +57,7 @@ if (!fs.existsSync(productDir)) {
   fs.mkdirSync(productDir, { recursive: true });
 }
 
-const app = express();
-const httpServer = createServer(app);
+
 const io = new Server(httpServer, {
   cors: {
     origin: "*", // Cập nhật origin khi triển khai thực tế
@@ -53,7 +65,6 @@ const io = new Server(httpServer, {
   },
 });
 
-const port = process.env.PORT || 3000;
 
 // Cấu hình multer để lưu ảnh vào thư mục images/profile
 const profileStorage = multer.diskStorage({
@@ -146,12 +157,6 @@ const uploadPredict = multer({
     }
   },
 });
-
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Kết nối MongoDB
 const mongoURI = "mongodb://127.0.0.1:27017/greentree_app";
@@ -1274,9 +1279,9 @@ app.get("/api/seller/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const orders = await Seller.find({ user: userId }).populate(
-      "products.product"
-    );
+    const orders = await Seller.find({ user: userId })
+    .populate("products.product") 
+    .sort({ createdAt: -1 });
 
     const categorized = {
       pending: [],
@@ -2336,6 +2341,128 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
     }
   });
 });
+
+
+// Xử lý payment momo
+app.post('/payment', async (req, res) => {
+  let {
+    accessKey,
+    secretKey,
+    orderInfo,
+    partnerCode,
+    redirectUrl,
+    ipnUrl,
+    requestType,
+    extraData,
+    orderGroupId,
+    autoCapture,
+    lang,
+  } = config;
+
+  const orderData = req.body;  
+  
+  var amount = orderData.total_price;
+  var orderId = orderData.userId + new Date().getTime();
+  var requestId = orderId;
+
+  var rawSignature =
+    'accessKey=' +
+    accessKey +
+    '&amount=' +
+    amount +
+    '&extraData=' +
+    extraData +
+    '&ipnUrl=' +
+    ipnUrl +
+    '&orderId=' +
+    orderId +
+    '&orderInfo=' +
+    orderInfo +
+    '&partnerCode=' +
+    partnerCode +
+    '&redirectUrl=' +
+    redirectUrl +
+    '&requestId=' +
+    requestId +
+    '&requestType=' +
+    requestType;
+
+  //signature
+  var signature = crypto
+    .createHmac('sha256', secretKey)
+    .update(rawSignature)
+    .digest('hex');
+
+  //json object send to MoMo endpoint
+  const requestBody = JSON.stringify({
+    partnerCode: partnerCode,
+    partnerName: 'Test',
+    storeId: 'MomoTestStore',
+    requestId: requestId,
+    amount: amount,
+    orderId: orderId,
+    orderInfo: orderInfo,
+    redirectUrl: redirectUrl,
+    ipnUrl: ipnUrl,
+    lang: lang,
+    requestType: requestType,
+    autoCapture: autoCapture,
+    extraData: extraData,
+    orderGroupId: orderGroupId,
+    signature: signature,
+  });
+
+  const options = {
+    method: 'POST',
+    url: 'https://test-payment.momo.vn/v2/gateway/api/create',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(requestBody),
+    },
+    data: requestBody,
+  };
+  let result;
+  try {
+    result = await axios(options);
+    return res.status(200).json(result.data);
+  } catch (error) {
+    return res.status(500).json({ statusCode: 500, message: error.message });
+  }
+});
+
+app.post('/check-status-transaction', async (req, res) => {
+    const { orderId } = req.body;
+    // const signature = accessKey=$accessKey&orderId=$orderId&partnerCode=$partnerCode
+    // &requestId=$requestId
+    var secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
+    var accessKey = 'F8BBA842ECF85';
+    const rawSignature = `accessKey=${accessKey}&orderId=${orderId}&partnerCode=MOMO&requestId=${orderId}`;
+  
+    const signature = crypto
+      .createHmac('sha256', secretKey)
+      .update(rawSignature)
+      .digest('hex');
+  
+    const requestBody = JSON.stringify({
+      partnerCode: 'MOMO',
+      requestId: orderId,
+      orderId: orderId,
+      signature: signature,
+      lang: 'vi',
+    });
+      const options = {
+      method: 'POST',
+      url: 'https://test-payment.momo.vn/v2/gateway/api/query',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: requestBody,
+    };
+  
+    const result = await axios(options);
+    return res.status(200).json(result.data);
+  });
+
 
 // Khởi động server
 httpServer.listen(port, () => {
