@@ -569,22 +569,6 @@ async function run() {
 
     await db.collection("favourites").insertMany(favourites);
 
-    // Seed UserCarts
-    const userCarts = [
-    ];
-    await db.collection("usercarts").insertMany(userCarts);
-
-   // Seed Sellers (Orders)
-const sellers = [
-];
-
-await db.collection("sellers").insertMany(sellers);
-
-
-       const notices = [
-      
-    ];
-    await db.collection("notices").insertMany(notices);
 
     const shippers = [
       {
