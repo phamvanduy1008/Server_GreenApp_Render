@@ -345,7 +345,7 @@ if __name__ == '__main__':
         sys.exit(1)
     
     image_path = sys.argv[1]
-    model_path = 'plant-disease-model-complete.pth'
+    model_path = './AI/plant-disease-model-complete.pth'
     
     print(f"Image path: {image_path}", file=sys.stderr)
     print(f"Model path: {model_path}", file=sys.stderr)
