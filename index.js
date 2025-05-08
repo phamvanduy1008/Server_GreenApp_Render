@@ -739,6 +739,7 @@ app.post("/login", async (req, res) => {
       user: {
         _id: user._id,
         email: user.email,
+        onboarding_completed : user.onboarding_completed,
         profile: user.profile,
       },
     });
@@ -841,6 +842,7 @@ app.post("/update-infor", async (req, res) => {
       return res.status(201).json({ message: "Tạo user mới thành công", user });
     }
 
+    user.onboarding_completed = 1;
     user.profile.full_name = full_name;
     user.profile.username = username;
     user.profile.gender = gender;

@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema(
     },
     addresses: [
       {
-        _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, // cần có để xoá từng địa chỉ
+        _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, 
         name: { type: String, required: true },
         phone: { type: String, required: true },
         address: { type: String, required: true },
@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema(
         city: { type: String },
       },
     ],
+    onboarding_completed : {type : Number, default: 0},
     isActive: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
   },
