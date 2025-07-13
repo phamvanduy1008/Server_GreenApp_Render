@@ -158,7 +158,7 @@ const uploadPredict = multer({
 });
 
 // Kết nối MongoDB
-const mongoURI = "mongodb://127.0.0.1:27017/greentree_app";
+const mongoURI = "mongodb+srv://phamvanduydev:htS20FO4VPfsgmpv@cluster0.ujkwflo.mongodb.net/greentree_app?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(mongoURI);
 
 mongoose.connection.on("connected", () => {
