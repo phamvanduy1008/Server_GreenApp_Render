@@ -317,6 +317,11 @@ io.on("connection", (socket) => {
   });
 });
 
+app.get('/', (req, res) => {
+  res.send('✅ Server đã deploy thành công trên Render!');
+});
+
+
 // Endpoint để thêm sản phẩm mới
 app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
   const { name, price, info, status, sold, category } = req.body;
