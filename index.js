@@ -2299,50 +2299,53 @@ app.delete("/api/delete_addresses/:userId/:addressId", async (req, res) => {
 });
 
 app.post('/predict', uploadPredict.single('image'), (req, res) => {
-  console.log('Received predict request');
+  console.log('🔔 Received predict request');
+
+  // Log toàn bộ body và file để kiểm tra
+  console.log('📝 req.body:', req.body);
+  console.log('🖼️ req.file:', req.file);
+
   if (!req.file) {
-    console.log('No image uploaded');
+    console.log('❌ No image uploaded');
     return res.status(400).json({ error: 'No image uploaded' });
   }
 
   const imagePath = req.file.path;
-  console.log(`Image uploaded to: ${imagePath}`);
+  console.log(`📂 Image uploaded to: ${imagePath}`);
 
-  // Normalize path for cross-platform compatibility
   const normalizedImagePath = imagePath.replace(/\\/g, '/');
-  const command =  `python AI/predict.py "${normalizedImagePath}"`;
-  console.log(`Executing command: ${command}`);
+  const command = `python AI/predict.py "${normalizedImagePath}"`;
+  console.log(`🚀 Executing command: ${command}`);
 
   exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
-    // Delete the image after processing
     fs.unlink(imagePath, (unlinkErr) => {
       if (unlinkErr) {
-        console.error('Error deleting image:', imagePath, unlinkErr);
+        console.error('🧨 Error deleting image:', unlinkErr);
       } else {
-        console.log('Deleted image:', imagePath);
+        console.log('🗑️ Deleted image:', imagePath);
       }
     });
 
     if (err) {
-      console.error('Python script error:', err);
-      console.error('STDERR:', stderr);
+      console.error('💥 Python script error:', err);
+      console.error('📛 STDERR:', stderr);
       return res.status(500).json({ error: 'Prediction failed', details: stderr || err.message });
     }
 
-    console.log('Python script stdout:', stdout);
-    console.log('Python script stderr:', stderr);
+    console.log('📤 Python script stdout:', stdout);
+    console.log('📛 Python script stderr:', stderr);
 
     if (!stdout) {
-      console.error('No output from Python script');
+      console.error('❌ No output from Python script');
       return res.status(500).json({ error: 'No prediction returned from script' });
     }
 
     try {
       const result = JSON.parse(stdout.trim());
-      console.log('Prediction result:', result);
-      res.json(result); // Return { prediction, solutions }
+      console.log('✅ Prediction result:', result);
+      res.json(result);
     } catch (parseErr) {
-      console.error('Error parsing Python output:', parseErr);
+      console.error('🚨 Error parsing Python output:', parseErr);
       res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
     }
   });
