@@ -1,5 +1,13 @@
-buildCommand: npm install
-startCommand: node index.js
-env:
-  - key: NODE_VERSION
-    value: 18
+services:
+  - type: web
+    name: plant-disease-api
+    runtime: node
+    buildCommand: |
+      pip install -r AI/requirements.txt
+      npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: PYTHONUNBUFFERED
+        value: "1"
