@@ -5,6 +5,7 @@ from PIL import Image
 import os
 import io
 import json
+from torchvision import transforms
 
 # Thiết lập mã hóa UTF-8 cho stdout
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -312,7 +313,7 @@ def predict_image(image_path, model_path):
     print("Processing image...", file=sys.stderr)
     try:
         transform = transforms.Compose([
-            transforms.Resize((256, 256)),
+            transforms.Resize((224, 224)),  # Giảm kích thước ảnh để tiết kiệm RAM
             transforms.ToTensor(),
         ])
         image = Image.open(image_path).convert('RGB')
@@ -338,7 +339,22 @@ def predict_image(image_path, model_path):
 
     return {"prediction": predicted_disease, "solutions": solutions}
 
+
 if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Usage: python predict.py <image_path>", file=sys.stderr)
+        sys.exit(1)
+
+    image_path = sys.argv[1]
+    model_path = "./AI/plant-disease-model-complete.pth"
+
+    try:
+        result = predict_image(image_path, model_path)
+        print(result)
+        sys.exit(0)
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
     print("Checking arguments...", file=sys.stderr)
     if len(sys.argv) < 2:
         print("Error: Image path is required", file=sys.stderr)
