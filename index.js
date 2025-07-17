@@ -1,8 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
-import cors from 'cors';
 import bcrypt from 'bcryptjs';
+import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -41,7 +41,6 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static(path.join(__dirname, "images")));
-
 
 
 // Tạo thư mục images/profile nếu chưa tồn tại
@@ -158,7 +157,7 @@ const uploadPredict = multer({
 });
 
 // Kết nối MongoDB
-const mongoURI = "mongodb://127.0.0.1:27017/greentree_app";
+const mongoURI = "mongodb+srv://phamvanduydev:htS20FO4VPfsgmpv@cluster0.ujkwflo.mongodb.net/greentree_app?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(mongoURI);
 
 mongoose.connection.on("connected", () => {
@@ -316,6 +315,11 @@ io.on("connection", (socket) => {
     console.log("Client disconnected:", socket.id);
   });
 });
+
+app.get('/', (req, res) => {
+  res.send('✅ Server đã deploy thành công!');
+});
+
 
 // Endpoint để thêm sản phẩm mới
 app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
@@ -2299,6 +2303,7 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
     console.log('No image uploaded');
     return res.status(400).json({ error: 'No image uploaded' });
   }
+
   const imagePath = req.file.path;
   console.log(`Image uploaded to: ${imagePath}`);
 
