@@ -1,8 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
-import bcrypt from 'bcryptjs';
 import cors from 'cors';
+import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -13,7 +13,6 @@ import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { exec } from 'child_process';
-
 
 import {
   User,
@@ -42,8 +41,6 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static(path.join(__dirname, "images")));
-
-const storage = multer.memoryStorage(); 
 
 
 
@@ -144,21 +141,24 @@ const uploadProduct = multer({
 });
 
 const uploadPredict = multer({
-  storage: storage,
+  storage: predictStorage,
   fileFilter: (req, file, cb) => {
-    console.log('🔍 File nhận được:', file);
-    if (!file || !file.originalname) return cb(null, false);
+    if (!file || !file.originalname) {
+      return cb(null, true);
+    }
     const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(file.originalname.toLowerCase());
+    const extname = filetypes.test(path.extname(file.originalname.toLowerCase()));
     const mimetype = filetypes.test(file.mimetype);
-    if (extname && mimetype) cb(null, true);
-    else cb(new Error('Sai định dạng ảnh'));
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Chỉ hỗ trợ file ảnh định dạng JPEG, JPG hoặc PNG!'));
+    }
   },
-}).single('image');
-
+});
 
 // Kết nối MongoDB
-const mongoURI = "mongodb+srv://phamvanduydev:htS20FO4VPfsgmpv@cluster0.ujkwflo.mongodb.net/greentree_app?retryWrites=true&w=majority&appName=Cluster0";
+const mongoURI = "mongodb://127.0.0.1:27017/greentree_app";
 mongoose.connect(mongoURI);
 
 mongoose.connection.on("connected", () => {
@@ -316,11 +316,6 @@ io.on("connection", (socket) => {
     console.log("Client disconnected:", socket.id);
   });
 });
-
-app.get('/', (req, res) => {
-  res.send('✅ Server đã deploy thành công trên Render!');
-});
-
 
 // Endpoint để thêm sản phẩm mới
 app.post("/api/products", uploadProduct.single("image"), async (req, res) => {
@@ -2298,37 +2293,54 @@ app.delete("/api/delete_addresses/:userId/:addressId", async (req, res) => {
   }
 });
 
-app.post('/predict', uploadPredict, async (req, res) => {
-  console.log('🔔 Received predict request');
-  console.log('📝 req.body:', req.body);
-  console.log('🖼️ req.file:', req.file);
-
+app.post('/predict', uploadPredict.single('image'), (req, res) => {
+  console.log('Received predict request');
   if (!req.file) {
+    console.log('No image uploaded');
     return res.status(400).json({ error: 'No image uploaded' });
   }
+  const imagePath = req.file.path;
+  console.log(`Image uploaded to: ${imagePath}`);
 
-  // Ghi file ảnh tạm vào ổ đĩa
-  const imagePath = `temp_${Date.now()}.jpg`;
-  fs.writeFileSync(imagePath, req.file.buffer);
+  // Normalize path for cross-platform compatibility
+  const normalizedImagePath = imagePath.replace(/\\/g, '/');
+  const command =  `python AI/predict.py "${normalizedImagePath}"`;
+  console.log(`Executing command: ${command}`);
 
-  const command = `python3 AI/predict.py "${imagePath}"`;
-  exec(command, (err, stdout, stderr) => {
-    fs.unlinkSync(imagePath); // xóa ảnh sau khi xử lý
+  exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
+    // Delete the image after processing
+    fs.unlink(imagePath, (unlinkErr) => {
+      if (unlinkErr) {
+        console.error('Error deleting image:', imagePath, unlinkErr);
+      } else {
+        console.log('Deleted image:', imagePath);
+      }
+    });
 
     if (err) {
       console.error('Python script error:', err);
-      return res.status(500).json({ error: 'Prediction failed', details: stderr });
+      console.error('STDERR:', stderr);
+      return res.status(500).json({ error: 'Prediction failed', details: stderr || err.message });
+    }
+
+    console.log('Python script stdout:', stdout);
+    console.log('Python script stderr:', stderr);
+
+    if (!stdout) {
+      console.error('No output from Python script');
+      return res.status(500).json({ error: 'No prediction returned from script' });
     }
 
     try {
       const result = JSON.parse(stdout.trim());
-      return res.json(result);
+      console.log('Prediction result:', result);
+      res.json(result); // Return { prediction, solutions }
     } catch (parseErr) {
-      return res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
+      console.error('Error parsing Python output:', parseErr);
+      res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
     }
   });
 });
-
 
 
 // Xử lý payment momo
