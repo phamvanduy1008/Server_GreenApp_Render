@@ -1,24 +1,27 @@
+# Base image Node.js
 FROM node:18
 
-# Cài Python + pip
+# Install Python & pip
 RUN apt-get update && \
     apt-get install -y python3 python3-pip && \
     pip3 install --upgrade pip
 
-# Tạo thư mục làm việc
+# Set working directory
 WORKDIR /app
 
-# Copy toàn bộ mã nguồn vào Docker container
-COPY . .
-
-# Cài thư viện Python
-RUN pip3 install -r requirements.txt
-
-# Cài Node.js packages
+# Copy package files first and install Node dependencies (for Docker layer caching)
+COPY package*.json ./
 RUN npm install
 
-# Mở port
+# Copy Python requirements and install them
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the app
+COPY . .
+
+# Expose port (phù hợp với app đang dùng)
 EXPOSE 3000
 
-# Khởi chạy app (tuỳ bạn dùng gì: server.js hoặc index.js)
+# Default command
 CMD ["npm", "start"]
