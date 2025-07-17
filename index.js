@@ -33,6 +33,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const app = express();
 const httpServer = createServer(app);
 const port = process.env.PORT || 3000;
@@ -2299,6 +2300,7 @@ app.delete("/api/delete_addresses/:userId/:addressId", async (req, res) => {
 
 app.post('/predict', uploadPredict.single('image'), (req, res) => {
   console.log('Received predict request');
+
   if (!req.file) {
     console.log('No image uploaded');
     return res.status(400).json({ error: 'No image uploaded' });
@@ -2307,13 +2309,14 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
   const imagePath = req.file.path;
   console.log(`Image uploaded to: ${imagePath}`);
 
-  // Normalize path for cross-platform compatibility
   const normalizedImagePath = imagePath.replace(/\\/g, '/');
-  const command =  `python AI/predict.py "${normalizedImagePath}"`;
+  const scriptPath = path.join(__dirname, 'AI', 'predict.py').replace(/\\/g, '/');
+  const absImagePath = path.resolve(normalizedImagePath);
+  const command = `python3 "${scriptPath}" "${absImagePath}"`;
+
   console.log(`Executing command: ${command}`);
 
   exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
-    // Delete the image after processing
     fs.unlink(imagePath, (unlinkErr) => {
       if (unlinkErr) {
         console.error('Error deleting image:', imagePath, unlinkErr);
@@ -2339,13 +2342,14 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
     try {
       const result = JSON.parse(stdout.trim());
       console.log('Prediction result:', result);
-      res.json(result); // Return { prediction, solutions }
+      res.json(result); // { prediction, solutions }
     } catch (parseErr) {
       console.error('Error parsing Python output:', parseErr);
       res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
     }
   });
 });
+
 
 
 // Xử lý payment momo
