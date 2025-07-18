@@ -33,7 +33,6 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 const httpServer = createServer(app);
 const port = process.env.PORT || 3000;
@@ -2300,7 +2299,6 @@ app.delete("/api/delete_addresses/:userId/:addressId", async (req, res) => {
 
 app.post('/predict', uploadPredict.single('image'), (req, res) => {
   console.log('Received predict request');
-
   if (!req.file) {
     console.log('No image uploaded');
     return res.status(400).json({ error: 'No image uploaded' });
@@ -2309,15 +2307,13 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
   const imagePath = req.file.path;
   console.log(`Image uploaded to: ${imagePath}`);
 
+  // Normalize path for cross-platform compatibility
   const normalizedImagePath = imagePath.replace(/\\/g, '/');
-  const scriptPath = path.join(__dirname, 'AI', 'predict.py').replace(/\\/g, '/');
-  const absImagePath = path.resolve(normalizedImagePath);
-  const command = `python3 "${scriptPath}" "${absImagePath}"`;
-
+  const command =  `python AI/predict.py "${normalizedImagePath}"`;
   console.log(`Executing command: ${command}`);
 
   exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
-    // Xóa ảnh sau khi xử lý
+    // Delete the image after processing
     fs.unlink(imagePath, (unlinkErr) => {
       if (unlinkErr) {
         console.error('Error deleting image:', imagePath, unlinkErr);
@@ -2337,93 +2333,19 @@ app.post('/predict', uploadPredict.single('image'), (req, res) => {
 
     if (!stdout) {
       console.error('No output from Python script');
-      return res.status(500).json({ error: 'No prediction returned from script', stderr });
-    }
-
-    // Làm sạch stdout để lấy dòng JSON
-    const cleaned = stdout
-      .trim()
-      .split('\n')
-      .find(line => line.trim().startsWith('{') && line.trim().endsWith('}'));
-
-    if (!cleaned) {
-      console.error('No valid JSON found in Python output');
-      return res.status(500).json({ error: 'Invalid output format from Python script' });
+      return res.status(500).json({ error: 'No prediction returned from script' });
     }
 
     try {
-      const result = JSON.parse(cleaned);
+      const result = JSON.parse(stdout.trim());
       console.log('Prediction result:', result);
-      res.json(result); // { prediction, solutions }
-    } catch (parseErr) {
-      console.error('Error parsing Python output:', parseErr);
-      res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
-    }
-  });
-});app.post('/predict', uploadPredict.single('image'), (req, res) => {
-  console.log('Received predict request');
-
-  if (!req.file) {
-    console.log('No image uploaded');
-    return res.status(400).json({ error: 'No image uploaded' });
-  }
-
-  const imagePath = req.file.path;
-  console.log(`Image uploaded to: ${imagePath}`);
-
-  const normalizedImagePath = imagePath.replace(/\\/g, '/');
-  const scriptPath = path.join(__dirname, 'AI', 'predict.py').replace(/\\/g, '/');
-  const absImagePath = path.resolve(normalizedImagePath);
-  const command = `python3 "${scriptPath}" "${absImagePath}"`;
-
-  console.log(`Executing command: ${command}`);
-
-  exec(command, { timeout: 30000 }, (err, stdout, stderr) => {
-    // Xóa ảnh sau khi xử lý
-    fs.unlink(imagePath, (unlinkErr) => {
-      if (unlinkErr) {
-        console.error('Error deleting image:', imagePath, unlinkErr);
-      } else {
-        console.log('Deleted image:', imagePath);
-      }
-    });
-
-    if (err) {
-      console.error('Python script error:', err);
-      console.error('STDERR:', stderr);
-      return res.status(500).json({ error: 'Prediction failed', details: stderr || err.message });
-    }
-
-    console.log('Python script stdout:', stdout);
-    console.log('Python script stderr:', stderr);
-
-    if (!stdout) {
-      console.error('No output from Python script');
-      return res.status(500).json({ error: 'No prediction returned from script', stderr });
-    }
-
-    // Làm sạch stdout để lấy dòng JSON
-    const cleaned = stdout
-      .trim()
-      .split('\n')
-      .find(line => line.trim().startsWith('{') && line.trim().endsWith('}'));
-
-    if (!cleaned) {
-      console.error('No valid JSON found in Python output');
-      return res.status(500).json({ error: 'Invalid output format from Python script' });
-    }
-
-    try {
-      const result = JSON.parse(cleaned);
-      console.log('Prediction result:', result);
-      res.json(result); // { prediction, solutions }
+      res.json(result); // Return { prediction, solutions }
     } catch (parseErr) {
       console.error('Error parsing Python output:', parseErr);
       res.status(500).json({ error: 'Invalid prediction result', details: parseErr.message });
     }
   });
 });
-
 
 
 // Xử lý payment momo
